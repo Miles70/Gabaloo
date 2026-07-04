@@ -1,0 +1,47 @@
+.hero {
+  min-height: calc(100vh - 86px);
+  padding: 28px;
+}
+
+.heroContent {
+  max-width: 1180px;
+  margin: 110px auto 0;
+}
+
+.eyebrow {
+  color: #ffbe55;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  font-size: 13px;
+}
+
+.hero h1 {
+  margin: 14px 0;
+  font-size: clamp(58px, 9vw, 126px);
+  line-height: 0.92;
+  letter-spacing: -0.08em;
+}
+
+.heroText {
+  max-width: 620px;
+  color: rgba(255, 255, 255, 0.68);
+  font-size: 20px;
+  line-height: 1.6;
+}
+
+.heroActions {
+  display: flex;
+  gap: 14px;
+  margin-top: 34px;
+}
+
+@media (max-width: 760px) {
+  .hero {
+    padding: 16px;
+  }
+
+  .heroContent {
+    margin-top: 80px;
+  }
+}
