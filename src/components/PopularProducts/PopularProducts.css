@@ -1,0 +1,30 @@
+.popularProducts{
+padding:80px 28px;
+}
+
+.productsGrid{
+display:grid;
+grid-template-columns:repeat(4,1fr);
+gap:22px;
+margin-top:40px;
+}
+
+@media(max-width:1000px){
+
+.productsGrid{
+grid-template-columns:repeat(2,1fr);
+}
+
+}
+
+@media(max-width:640px){
+
+.productsGrid{
+grid-template-columns:1fr;
+}
+
+.popularProducts{
+padding:60px 18px;
+}
+
+}
