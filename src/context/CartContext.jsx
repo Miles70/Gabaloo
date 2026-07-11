@@ -38,17 +38,22 @@ export function CartProvider({ children }) {
     return () => clearTimeout(timer);
   }, [lastAddedItem]);
 
-  function addToCart(product) {
+  function addToCart(product, quantity = 1) {
+    const safeQuantity = Math.max(
+      1,
+      Math.min(99, Number.parseInt(quantity, 10) || 1),
+    );
+
     setCartItems((currentItems) => {
       const existingItem = currentItems.find(
-        (item) => item.key === product.key
+        (item) => item.key === product.key,
       );
 
       if (existingItem) {
         return currentItems.map((item) =>
           item.key === product.key
-            ? { ...item, quantity: item.quantity + 1 }
-            : item
+            ? { ...item, quantity: item.quantity + safeQuantity }
+            : item,
         );
       }
 
@@ -60,7 +65,8 @@ export function CartProvider({ children }) {
           categoryKey: product.categoryKey,
           price: product.price,
           image: product.image,
-          quantity: 1,
+          imageUrl: product.imageUrl,
+          quantity: safeQuantity,
         },
       ];
     });
@@ -69,7 +75,9 @@ export function CartProvider({ children }) {
       key: product.key,
       title: product.title,
       image: product.image,
+      imageUrl: product.imageUrl,
       price: product.price,
+      quantity: safeQuantity,
     });
   }
 
@@ -78,8 +86,8 @@ export function CartProvider({ children }) {
       currentItems.map((item) =>
         item.key === productKey
           ? { ...item, quantity: item.quantity + 1 }
-          : item
-      )
+          : item,
+      ),
     );
   }
 
@@ -89,15 +97,15 @@ export function CartProvider({ children }) {
         .map((item) =>
           item.key === productKey
             ? { ...item, quantity: item.quantity - 1 }
-            : item
+            : item,
         )
-        .filter((item) => item.quantity > 0)
+        .filter((item) => item.quantity > 0),
     );
   }
 
   function removeFromCart(productKey) {
     setCartItems((currentItems) =>
-      currentItems.filter((item) => item.key !== productKey)
+      currentItems.filter((item) => item.key !== productKey),
     );
   }
 
@@ -116,7 +124,7 @@ export function CartProvider({ children }) {
   const cartTotal = useMemo(() => {
     return cartItems.reduce(
       (total, item) => total + item.price * item.quantity,
-      0
+      0,
     );
   }, [cartItems]);
 
