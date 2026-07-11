@@ -25,7 +25,7 @@ function PopularProducts() {
       try {
         setStatus("loading");
         const payload = await getProducts(
-          { page: 1, limit: 25, sort: "popular" },
+          { page: 1, limit: 100, sort: "popular" },
           { signal: controller.signal }
         );
         setProducts(payload.products || []);
