@@ -27,6 +27,10 @@ const productSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.Mixed,
       default: {},
     },
+    translations: {
+      type: mongoose.Schema.Types.Mixed,
+      default: {},
+    },
     brand: {
       type: String,
       trim: true,
