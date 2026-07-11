@@ -1,10 +1,11 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import ProductCard from "../components/ProductCard/ProductCard";
 import { useCart } from "../context/CartContext";
 import { useLanguage } from "../i18n/LanguageContext";
 import { getProduct, getProducts } from "../services/productsApi";
 import "./ProductDetails.css";
+import "./ProductGalleryControls.css";
 
 const detailTranslations = {
   en: {
@@ -36,6 +37,8 @@ const detailTranslations = {
     brand: "Brand",
     reviews: "reviews",
     image: "Product image",
+    previousImage: "Previous product image",
+    nextImage: "Next product image",
   },
   tr: {
     back: "Ürünlere dön",
@@ -66,6 +69,8 @@ const detailTranslations = {
     brand: "Marka",
     reviews: "değerlendirme",
     image: "Ürün görseli",
+    previousImage: "Önceki ürün görseli",
+    nextImage: "Sonraki ürün görseli",
   },
   ru: {
     back: "Назад к товарам",
@@ -96,6 +101,8 @@ const detailTranslations = {
     brand: "Бренд",
     reviews: "отзывов",
     image: "Изображение товара",
+    previousImage: "Предыдущее изображение товара",
+    nextImage: "Следующее изображение товара",
   },
   ar: {
     back: "العودة إلى المنتجات",
@@ -126,6 +133,8 @@ const detailTranslations = {
     brand: "العلامة التجارية",
     reviews: "تقييم",
     image: "صورة المنتج",
+    previousImage: "صورة المنتج السابقة",
+    nextImage: "صورة المنتج التالية",
   },
   zh: {
     back: "返回产品列表",
@@ -156,6 +165,8 @@ const detailTranslations = {
     brand: "品牌",
     reviews: "条评价",
     image: "商品图片",
+    previousImage: "上一张商品图片",
+    nextImage: "下一张商品图片",
   },
 };
 
@@ -169,6 +180,8 @@ function ProductDetails() {
   const [isAdded, setIsAdded] = useState(false);
   const [status, setStatus] = useState("loading");
   const [selectedImage, setSelectedImage] = useState("");
+  const touchStartRef = useRef({ x: 0, y: 0 });
+  const touchEndRef = useRef({ x: 0, y: 0 });
   const labels = detailTranslations[language] || detailTranslations.en;
 
   useEffect(() => {
@@ -220,6 +233,20 @@ function ProductDetails() {
     return () => controller.abort();
   }, [productKey]);
 
+  const galleryImages = useMemo(() => {
+    if (!product) return [];
+
+    return [
+      ...(Array.isArray(product.images) ? product.images : []),
+      product.imageUrl,
+    ]
+      .filter(Boolean)
+      .filter((url, index, array) => array.indexOf(url) === index)
+      .slice(0, 6);
+  }, [product]);
+
+  const selectedImageIndex = Math.max(0, galleryImages.indexOf(selectedImage));
+
   function formatPrice(price) {
     return `$${Number(price || 0).toLocaleString("en-US", {
       minimumFractionDigits: 2,
@@ -255,17 +282,50 @@ function ProductDetails() {
     return "";
   }
 
-  const galleryImages = useMemo(() => {
-    if (!product) return [];
+  function changeGalleryImage(direction) {
+    if (galleryImages.length < 2) return;
 
-    return [
-      ...(Array.isArray(product.images) ? product.images : []),
-      product.imageUrl,
-    ]
-      .filter(Boolean)
-      .filter((url, index, array) => array.indexOf(url) === index)
-      .slice(0, 6);
-  }, [product]);
+    const currentIndex = Math.max(0, galleryImages.indexOf(selectedImage));
+    const nextIndex =
+      (currentIndex + direction + galleryImages.length) % galleryImages.length;
+
+    setSelectedImage(galleryImages[nextIndex]);
+  }
+
+  function handleTouchStart(event) {
+    const touch = event.touches[0];
+    touchStartRef.current = { x: touch.clientX, y: touch.clientY };
+    touchEndRef.current = { x: touch.clientX, y: touch.clientY };
+  }
+
+  function handleTouchMove(event) {
+    const touch = event.touches[0];
+    touchEndRef.current = { x: touch.clientX, y: touch.clientY };
+  }
+
+  function handleTouchEnd() {
+    const distanceX = touchEndRef.current.x - touchStartRef.current.x;
+    const distanceY = touchEndRef.current.y - touchStartRef.current.y;
+
+    if (Math.abs(distanceX) > 45 && Math.abs(distanceX) > Math.abs(distanceY)) {
+      changeGalleryImage(distanceX > 0 ? -1 : 1);
+    }
+
+    touchStartRef.current = { x: 0, y: 0 };
+    touchEndRef.current = { x: 0, y: 0 };
+  }
+
+  function handleGalleryKeyDown(event) {
+    if (event.key === "ArrowLeft") {
+      event.preventDefault();
+      changeGalleryImage(-1);
+    }
+
+    if (event.key === "ArrowRight") {
+      event.preventDefault();
+      changeGalleryImage(1);
+    }
+  }
 
   if (status === "loading") {
     return (
@@ -298,12 +358,14 @@ function ProductDetails() {
   const badgeLabel = getBadgeLabel();
   const fallbackLetter = product.title?.charAt(0)?.toUpperCase() || "K";
   const maximumQuantity = Math.max(1, Math.min(10, Number(product.stock) || 1));
-  const features = Array.isArray(product.features) && product.features.length > 0
-    ? product.features.slice(0, 8)
-    : [product.brand ? `${labels.brand}: ${product.brand}` : labels.catalog];
-  const detailEntries = product.details && typeof product.details === "object"
-    ? Object.entries(product.details).slice(0, 10)
-    : [];
+  const features =
+    Array.isArray(product.features) && product.features.length > 0
+      ? product.features.slice(0, 8)
+      : [product.brand ? `${labels.brand}: ${product.brand}` : labels.catalog];
+  const detailEntries =
+    product.details && typeof product.details === "object"
+      ? Object.entries(product.details).slice(0, 10)
+      : [];
 
   return (
     <main className="productDetailsPage">
@@ -322,17 +384,57 @@ function ProductDetails() {
 
       <section className="productDetailsHero">
         <div className="productDetailsMedia">
-          <div className="productDetailsVisual">
+          <div
+            className="productDetailsVisual"
+            tabIndex={galleryImages.length > 1 ? 0 : -1}
+            onKeyDown={handleGalleryKeyDown}
+            onTouchStart={handleTouchStart}
+            onTouchMove={handleTouchMove}
+            onTouchEnd={handleTouchEnd}
+            aria-label={labels.image}
+          >
             <span className="productDetailsFallback" aria-hidden="true">
               {fallbackLetter}
             </span>
 
             {selectedImage && (
               <img
+                key={selectedImage}
                 src={selectedImage}
                 alt={product.title}
+                draggable="false"
                 onError={handleImageError}
               />
+            )}
+
+            {galleryImages.length > 1 && (
+              <>
+                <button
+                  type="button"
+                  className="productGalleryArrow productGalleryArrowPrevious"
+                  onClick={() => changeGalleryImage(-1)}
+                  aria-label={labels.previousImage}
+                >
+                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M15 5L8 12L15 19" />
+                  </svg>
+                </button>
+
+                <button
+                  type="button"
+                  className="productGalleryArrow productGalleryArrowNext"
+                  onClick={() => changeGalleryImage(1)}
+                  aria-label={labels.nextImage}
+                >
+                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M9 5L16 12L9 19" />
+                  </svg>
+                </button>
+
+                <span className="productGalleryCounter" aria-live="polite">
+                  {selectedImageIndex + 1} / {galleryImages.length}
+                </span>
+              </>
             )}
 
             {badgeLabel && (
@@ -354,8 +456,9 @@ function ProductDetails() {
                   key={imageUrl}
                   onClick={() => setSelectedImage(imageUrl)}
                   aria-label={`${labels.image} ${index + 1}`}
+                  aria-current={selectedImage === imageUrl ? "true" : undefined}
                 >
-                  <img src={imageUrl} alt="" loading="lazy" />
+                  <img src={imageUrl} alt="" loading="lazy" draggable="false" />
                 </button>
               ))}
             </div>
@@ -369,7 +472,9 @@ function ProductDetails() {
           <div className="productDetailsRating">
             <span aria-hidden="true">★</span>
             <strong>{Number(product.rating || 0).toFixed(1)}</strong>
-            <small>{Number(product.reviewCount || 0).toLocaleString("en-US")} {labels.reviews}</small>
+            <small>
+              {Number(product.reviewCount || 0).toLocaleString("en-US")} {labels.reviews}
+            </small>
           </div>
 
           <p className="productDetailsDescription">
