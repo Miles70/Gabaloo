@@ -19,6 +19,14 @@ const productSchema = new mongoose.Schema(
       trim: true,
       default: "",
     },
+    features: {
+      type: [String],
+      default: [],
+    },
+    details: {
+      type: mongoose.Schema.Types.Mixed,
+      default: {},
+    },
     brand: {
       type: String,
       trim: true,
@@ -129,6 +137,7 @@ productSchema.index({
   brand: "text",
   categoryLabel: "text",
   description: "text",
+  features: "text",
 });
 
 export const Product = mongoose.model("Product", productSchema);
