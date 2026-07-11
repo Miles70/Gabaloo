@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Link } from "react-router-dom";
 import { useLanguage } from "../../i18n/LanguageContext";
 import { useCart } from "../../context/CartContext";
 import "./ProductCard.css";
@@ -42,6 +43,7 @@ function ProductCard({ product }) {
   const [isAdded, setIsAdded] = useState(false);
 
   const labels = badgeTranslations[language] || badgeTranslations.en;
+  const productPath = `/products/${product.key}`;
 
   function handleAddToCart() {
     addToCart(product);
@@ -67,7 +69,7 @@ function ProductCard({ product }) {
       product.oldPrice > product.price
     ) {
       const discount = Math.round(
-        ((product.oldPrice - product.price) / product.oldPrice) * 100
+        ((product.oldPrice - product.price) / product.oldPrice) * 100,
       );
 
       return `-${discount}%`;
@@ -82,47 +84,60 @@ function ProductCard({ product }) {
 
   return (
     <article className={isAdded ? "productCard added" : "productCard"}>
-      <div className="productImage">
-        <span className="productImageFallback" aria-hidden="true">
-          {fallbackLetter}
-        </span>
-
-        {product.imageUrl && (
-          <img
-            src={product.imageUrl}
-            alt={product.title}
-            loading="lazy"
-            decoding="async"
-            onError={handleImageError}
-          />
-        )}
-
-        {badgeLabel && (
-          <span className={`productBadge ${product.badge}`}>
-            {product.badge === "stock" && (
-              <span className="productBadgeDot" aria-hidden="true" />
-            )}
-
-            {badgeLabel}
+      <Link
+        to={productPath}
+        className="productImageLink"
+        style={{ display: "block" }}
+        aria-label={product.title}
+      >
+        <div className="productImage">
+          <span className="productImageFallback" aria-hidden="true">
+            {fallbackLetter}
           </span>
-        )}
-      </div>
+
+          {product.imageUrl && (
+            <img
+              src={product.imageUrl}
+              alt={product.title}
+              loading="lazy"
+              decoding="async"
+              onError={handleImageError}
+            />
+          )}
+
+          {badgeLabel && (
+            <span className={`productBadge ${product.badge}`}>
+              {product.badge === "stock" && (
+                <span className="productBadgeDot" aria-hidden="true" />
+              )}
+
+              {badgeLabel}
+            </span>
+          )}
+        </div>
+      </Link>
 
       <div className="productContent">
-        <p className="productCategory">
-          {t(`categories.${product.categoryKey}.title`)}
-        </p>
+        <Link
+          to={productPath}
+          className="productTitleLink"
+          style={{ display: "block" }}
+        >
+          <p className="productCategory">
+            {t(`categories.${product.categoryKey}.title`)}
+          </p>
 
-        <h3>{product.title}</h3>
+          <h3>{product.title}</h3>
+        </Link>
 
         <div className="productBottom">
-          <div className="productPriceBlock">
+          <Link to={productPath} className="productPriceBlock">
             <strong>{formatPrice(product.price)}</strong>
 
             {product.oldPrice && product.oldPrice > product.price && (
               <del>{formatPrice(product.oldPrice)}</del>
             )}
-          </div>
+          </Link>
 
           <button
             type="button"
