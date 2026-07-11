@@ -230,28 +230,62 @@ function normalizeOpenFactsProduct(product, source, position) {
   };
 }
 
-function buildSearchUrl(source, page) {
+function buildSearchUrl(source, page, includeSort = true) {
   const url = new URL("/api/v2/search", source.baseUrl);
   url.searchParams.set("fields", REQUEST_FIELDS);
   url.searchParams.set("page", String(page));
   url.searchParams.set("page_size", String(PAGE_SIZE));
-  url.searchParams.set("sort_by", "unique_scans_n");
+
+  if (includeSort) {
+    url.searchParams.set("sort_by", "unique_scans_n");
+  }
+
   return url;
 }
 
 async function fetchJsonWithRetry(url, headers, attempt = 1) {
-  const response = await fetch(url, { headers });
+  try {
+    const response = await fetch(url, { headers });
 
-  if (response.ok) return response.json();
+    if (response.ok) return response.json();
 
-  if ([429, 503].includes(response.status) && attempt < 4) {
-    await sleep(15000 * attempt);
-    return fetchJsonWithRetry(url, headers, attempt + 1);
+    if ([429, 502, 503, 504].includes(response.status) && attempt < 4) {
+      await sleep(15000 * attempt);
+      return fetchJsonWithRetry(url, headers, attempt + 1);
+    }
+
+    const error = new Error(
+      `Open Facts request failed (${response.status}) for ${url.hostname}.`
+    );
+    error.statusCode = response.status;
+    throw error;
+  } catch (error) {
+    if (error.statusCode) throw error;
+
+    if (attempt < 4) {
+      await sleep(15000 * attempt);
+      return fetchJsonWithRetry(url, headers, attempt + 1);
+    }
+
+    throw new Error(
+      `Open Facts network request failed for ${url.hostname}: ${error.message}`,
+      { cause: error }
+    );
   }
+}
 
-  throw new Error(
-    `Open Facts request failed (${response.status}) for ${url.hostname}.`
-  );
+async function fetchSourcePage(source, page, headers) {
+  try {
+    return await fetchJsonWithRetry(buildSearchUrl(source, page), headers);
+  } catch (error) {
+    if (![400, 404, 422].includes(error.statusCode)) throw error;
+
+    console.warn(
+      `[${source.type}] sorted search is unavailable; retrying page ${page} without sort.`
+    );
+
+    return fetchJsonWithRetry(buildSearchUrl(source, page, false), headers);
+  }
 }
 
 function allocateQuotas(target) {
@@ -286,8 +320,7 @@ async function collectSourceProducts({
     page <= MAX_PAGES_PER_SOURCE &&
     !exhausted
   ) {
-    const url = buildSearchUrl(source, page);
-    const payload = await fetchJsonWithRetry(url, {
+    const payload = await fetchSourcePage(source, page, {
       Accept: "application/json",
       "User-Agent": userAgent,
     });
@@ -379,17 +412,28 @@ export async function importOpenFactsCatalog(options = {}) {
   const states = [];
 
   for (const source of sources) {
-    const state = await collectSourceProducts({
-      source,
-      desiredCount: source.quota,
-      seenKeys,
-      requestDelayMs,
-      userAgent,
-      startingPosition: products.length,
-    });
+    try {
+      const state = await collectSourceProducts({
+        source,
+        desiredCount: source.quota,
+        seenKeys,
+        requestDelayMs,
+        userAgent,
+        startingPosition: products.length,
+      });
 
-    products.push(...state.products);
-    states.push({ source, ...state });
+      products.push(...state.products);
+      states.push({ source, ...state });
+    } catch (error) {
+      console.warn(`[${source.type}] source skipped: ${error.message}`);
+      states.push({
+        source,
+        products: [],
+        nextPage: 1,
+        exhausted: true,
+        error: error.message,
+      });
+    }
 
     if (products.length < target) await sleep(requestDelayMs);
   }
@@ -403,22 +447,31 @@ export async function importOpenFactsCatalog(options = {}) {
       if (products.length >= target || state.exhausted) continue;
 
       const remaining = target - products.length;
-      const extra = await collectSourceProducts({
-        source: state.source,
-        desiredCount: Math.min(remaining, PAGE_SIZE),
-        seenKeys,
-        requestDelayMs,
-        userAgent,
-        startPage: state.nextPage,
-        startingPosition: products.length,
-      });
 
-      state.nextPage = extra.nextPage;
-      state.exhausted = extra.exhausted;
+      try {
+        const extra = await collectSourceProducts({
+          source: state.source,
+          desiredCount: Math.min(remaining, PAGE_SIZE),
+          seenKeys,
+          requestDelayMs,
+          userAgent,
+          startPage: state.nextPage,
+          startingPosition: products.length,
+        });
 
-      if (extra.products.length > 0) {
-        products.push(...extra.products);
-        madeProgress = true;
+        state.nextPage = extra.nextPage;
+        state.exhausted = extra.exhausted;
+
+        if (extra.products.length > 0) {
+          products.push(...extra.products);
+          madeProgress = true;
+        }
+      } catch (error) {
+        state.exhausted = true;
+        state.error = error.message;
+        console.warn(
+          `[${state.source.type}] source stopped while filling remainder: ${error.message}`
+        );
       }
 
       if (products.length < target) await sleep(requestDelayMs);
