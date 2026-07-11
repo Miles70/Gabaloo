@@ -1,5 +1,10 @@
 import { Router } from "express";
 import { Product } from "../models/Product.js";
+import {
+  applyCachedCatalogTranslation,
+  localizeCatalogProduct,
+  normalizeCatalogLanguage,
+} from "../services/catalogTranslation.js";
 
 export const productsRouter = Router();
 
@@ -29,6 +34,7 @@ function buildSort(sortValue) {
 
 productsRouter.get("/categories", async (request, response, next) => {
   try {
+    const language = normalizeCatalogLanguage(request.query.lang);
     const categories = await Product.aggregate([
       { $match: { isActive: true } },
       { $sort: { popularity: -1, _id: 1 } },
@@ -52,7 +58,14 @@ productsRouter.get("/categories", async (request, response, next) => {
       { $sort: { count: -1, key: 1 } },
     ]);
 
-    response.json({ categories });
+    const localizedCategories = categories.map((category) => ({
+      ...category,
+      previewProducts: category.previewProducts.map((product) =>
+        applyCachedCatalogTranslation(product, language)
+      ),
+    }));
+
+    response.json({ categories: localizedCategories });
   } catch (error) {
     next(error);
   }
@@ -65,6 +78,7 @@ productsRouter.get("/", async (request, response, next) => {
     const category = String(request.query.category || "").trim();
     const search = String(request.query.search || "").trim();
     const sort = String(request.query.sort || "popular").trim();
+    const language = normalizeCatalogLanguage(request.query.lang);
     const filter = { isActive: true };
 
     if (category) filter.categoryKey = category;
@@ -90,9 +104,12 @@ productsRouter.get("/", async (request, response, next) => {
     ]);
 
     const totalPages = Math.max(1, Math.ceil(total / limit));
+    const localizedProducts = products.map((product) =>
+      applyCachedCatalogTranslation(product, language)
+    );
 
     response.json({
-      products,
+      products: localizedProducts,
       meta: {
         page,
         limit,
@@ -109,15 +126,17 @@ productsRouter.get("/", async (request, response, next) => {
 
 productsRouter.get("/:productKey", async (request, response, next) => {
   try {
-    const product = await Product.findOne({
+    const language = normalizeCatalogLanguage(request.query.lang);
+    const productDocument = await Product.findOne({
       key: request.params.productKey,
       isActive: true,
-    }).lean();
+    });
 
-    if (!product) {
+    if (!productDocument) {
       return response.status(404).json({ message: "Product not found." });
     }
 
+    const product = await localizeCatalogProduct(productDocument, language);
     return response.json({ product });
   } catch (error) {
     return next(error);
