@@ -1,15 +1,16 @@
 import "dotenv/config";
 import { connectDatabase, disconnectDatabase } from "../config/database.js";
-import { syncProductsFromCatalog } from "../services/productSync.js";
+import { importOpenFactsCatalog } from "../services/openFactsImport.js";
 
 try {
   await connectDatabase();
-  const result = await syncProductsFromCatalog();
-  console.log(
-    `Seed complete: ${result.modifiedCount || 0} updated, ${result.upsertedCount || 0} created.`
-  );
+
+  const result = await importOpenFactsCatalog();
+
+  console.log("Open Facts import complete:");
+  console.log(JSON.stringify(result, null, 2));
 } catch (error) {
-  console.error("Seed failed:", error);
+  console.error("Open Facts import failed:", error);
   process.exitCode = 1;
 } finally {
   await disconnectDatabase();
