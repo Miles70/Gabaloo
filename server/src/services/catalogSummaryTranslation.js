@@ -1,17 +1,200 @@
-import { Product } from "../models/Product.js";
 import {
   applyCachedCatalogTranslation,
   normalizeCatalogLanguage,
 } from "./catalogTranslation.js";
 
-const SUMMARY_SEPARATOR = "___KR_SUMMARY_SEPARATOR___";
-const summaryTranslationJobs = new Map();
-
-const PROVIDER_NAMES = {
-  mymemory: "mymemory",
-  libretranslate: "libretranslate",
-  deepl: "deepl",
+const CATEGORY_LABELS = {
+  tr: {
+    electronics: "Elektronik",
+    mobile: "Telefon ve Aksesuar",
+    home: "Ev ve Yaşam",
+    fashion: "Moda",
+    beauty: "Güzellik ve Bakım",
+    sports: "Spor ve Outdoor",
+    toys: "Oyuncak",
+    gaming: "Oyun",
+    office: "Ofis",
+    tools: "Yapı ve El Aletleri",
+    appliances: "Ev Aletleri",
+    pets: "Evcil Hayvan",
+    automotive: "Otomotiv",
+    baby: "Bebek",
+  },
+  ru: {
+    electronics: "Электроника",
+    mobile: "Телефоны и аксессуары",
+    home: "Дом и быт",
+    fashion: "Мода",
+    beauty: "Красота и уход",
+    sports: "Спорт и отдых",
+    toys: "Игрушки",
+    gaming: "Игры",
+    office: "Офис",
+    tools: "Инструменты",
+    appliances: "Бытовая техника",
+    pets: "Товары для животных",
+    automotive: "Автотовары",
+    baby: "Товары для детей",
+  },
+  ar: {
+    electronics: "الإلكترونيات",
+    mobile: "الهواتف وملحقاتها",
+    home: "المنزل والمعيشة",
+    fashion: "الأزياء",
+    beauty: "الجمال والعناية",
+    sports: "الرياضة والأنشطة الخارجية",
+    toys: "الألعاب",
+    gaming: "ألعاب الفيديو",
+    office: "المكتب",
+    tools: "الأدوات",
+    appliances: "الأجهزة المنزلية",
+    pets: "مستلزمات الحيوانات الأليفة",
+    automotive: "السيارات",
+    baby: "مستلزمات الأطفال",
+  },
+  zh: {
+    electronics: "电子产品",
+    mobile: "手机及配件",
+    home: "家居生活",
+    fashion: "时尚",
+    beauty: "美容护理",
+    sports: "运动户外",
+    toys: "玩具",
+    gaming: "游戏",
+    office: "办公用品",
+    tools: "工具",
+    appliances: "家用电器",
+    pets: "宠物用品",
+    automotive: "汽车用品",
+    baby: "母婴用品",
+  },
 };
+
+const TITLE_REPLACEMENTS = {
+  tr: [
+    ["wireless bluetooth", "kablosuz Bluetooth"],
+    ["noise cancelling", "gürültü engelleme özellikli"],
+    ["noise canceling", "gürültü engelleme özellikli"],
+    ["screen protector", "ekran koruyucu"],
+    ["charging station", "şarj istasyonu"],
+    ["fast charger", "hızlı şarj cihazı"],
+    ["gaming headset", "oyuncu kulaklığı"],
+    ["gaming keyboard", "oyuncu klavyesi"],
+    ["gaming mouse", "oyuncu faresi"],
+    ["smart watch", "akıllı saat"],
+    ["smartwatch", "akıllı saat"],
+    ["earbuds", "kulak içi kulaklık"],
+    ["headphones", "kulaklık"],
+    ["headset", "kulaklık"],
+    ["phone case", "telefon kılıfı"],
+    ["protective case", "koruyucu kılıf"],
+    ["power bank", "taşınabilir şarj cihazı"],
+    ["wall charger", "duvar tipi şarj cihazı"],
+    ["car charger", "araç şarj cihazı"],
+    ["charging cable", "şarj kablosu"],
+    ["usb cable", "USB kablosu"],
+    ["phone holder", "telefon tutucu"],
+    ["laptop stand", "dizüstü bilgisayar standı"],
+    ["vacuum cleaner", "elektrikli süpürge"],
+    ["coffee maker", "kahve makinesi"],
+    ["air fryer", "sıcak hava fritözü"],
+    ["water bottle", "su şişesi"],
+    ["storage organizer", "saklama düzenleyici"],
+    ["kitchen set", "mutfak seti"],
+    ["tool set", "alet seti"],
+    ["shower curtain", "duş perdesi"],
+    ["bed sheet", "çarşaf"],
+    ["running shoes", "koşu ayakkabısı"],
+    ["sports shoes", "spor ayakkabı"],
+    ["women's", "kadın"],
+    ["womens", "kadın"],
+    ["men's", "erkek"],
+    ["mens", "erkek"],
+    ["kids", "çocuk"],
+    ["baby", "bebek"],
+    ["portable", "taşınabilir"],
+    ["rechargeable", "şarj edilebilir"],
+    ["waterproof", "su geçirmez"],
+    ["adjustable", "ayarlanabilir"],
+    ["foldable", "katlanabilir"],
+    ["lightweight", "hafif"],
+    ["stainless steel", "paslanmaz çelik"],
+    ["set of", "set"],
+    ["pack of", "paket"],
+    ["with", "ile"],
+    ["for", "için"],
+  ],
+  ru: [
+    ["wireless bluetooth", "беспроводной Bluetooth"],
+    ["noise cancelling", "с шумоподавлением"],
+    ["screen protector", "защитное стекло"],
+    ["fast charger", "быстрое зарядное устройство"],
+    ["gaming headset", "игровая гарнитура"],
+    ["smart watch", "умные часы"],
+    ["smartwatch", "умные часы"],
+    ["earbuds", "беспроводные наушники"],
+    ["headphones", "наушники"],
+    ["phone case", "чехол для телефона"],
+    ["power bank", "внешний аккумулятор"],
+    ["charging cable", "зарядный кабель"],
+    ["portable", "портативный"],
+    ["waterproof", "водонепроницаемый"],
+    ["adjustable", "регулируемый"],
+    ["with", "с"],
+    ["for", "для"],
+  ],
+  ar: [
+    ["wireless bluetooth", "بلوتوث لاسلكي"],
+    ["noise cancelling", "بخاصية إلغاء الضوضاء"],
+    ["screen protector", "واقي شاشة"],
+    ["fast charger", "شاحن سريع"],
+    ["gaming headset", "سماعة ألعاب"],
+    ["smart watch", "ساعة ذكية"],
+    ["smartwatch", "ساعة ذكية"],
+    ["earbuds", "سماعات أذن"],
+    ["headphones", "سماعات رأس"],
+    ["phone case", "غطاء هاتف"],
+    ["power bank", "بطارية محمولة"],
+    ["charging cable", "كابل شحن"],
+    ["portable", "محمول"],
+    ["waterproof", "مقاوم للماء"],
+    ["adjustable", "قابل للتعديل"],
+    ["with", "مع"],
+    ["for", "لـ"],
+  ],
+  zh: [
+    ["wireless bluetooth", "无线蓝牙"],
+    ["noise cancelling", "降噪"],
+    ["screen protector", "屏幕保护膜"],
+    ["fast charger", "快速充电器"],
+    ["gaming headset", "游戏耳机"],
+    ["smart watch", "智能手表"],
+    ["smartwatch", "智能手表"],
+    ["earbuds", "入耳式耳机"],
+    ["headphones", "耳机"],
+    ["phone case", "手机壳"],
+    ["power bank", "充电宝"],
+    ["charging cable", "充电线"],
+    ["portable", "便携式"],
+    ["waterproof", "防水"],
+    ["adjustable", "可调节"],
+    ["with", "配有"],
+    ["for", "适用于"],
+  ],
+};
+
+const PROTECTED_NAMES = [
+  "AirPods",
+  "Apple Watch",
+  "Galaxy",
+  "iPhone",
+  "iPad",
+  "MacBook",
+  "PlayStation",
+  "Xbox",
+  "Kindle",
+  "Chromebook",
+];
 
 function normalizeText(value) {
   return String(value || "")
@@ -19,297 +202,107 @@ function normalizeText(value) {
     .trim();
 }
 
-function decodeHtmlEntities(value) {
-  return String(value || "")
-    .replace(/&quot;/g, '"')
-    .replace(/&#39;|&apos;/g, "'")
-    .replace(/&amp;/g, "&")
-    .replace(/&lt;/g, "<")
-    .replace(/&gt;/g, ">");
+function escapeRegExp(value) {
+  return String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
-function getTranslationProvider() {
-  const configured = String(
-    process.env.TRANSLATION_PROVIDER || "mymemory"
-  )
+function compactTitle(value) {
+  return normalizeText(value)
+    .replace(/\s*[|;]\s*.*$/, "")
+    .replace(/\s*\([^)]*(?:best seller|new arrival|hot sale)[^)]*\)/gi, "")
+    .replace(/\s+/g, " ")
     .trim()
-    .toLowerCase();
-
-  return PROVIDER_NAMES[configured] || PROVIDER_NAMES.mymemory;
+    .slice(0, 150);
 }
 
-async function fetchJson(url, options = {}) {
-  const controller = new AbortController();
-  const timeoutMs = Number(process.env.TRANSLATION_TIMEOUT_MS || 15000);
-  const timeout = setTimeout(() => controller.abort(), timeoutMs);
+function protectTitleTokens(value) {
+  const protectedValues = [];
+  let output = value;
 
-  try {
-    const response = await fetch(url, {
-      ...options,
-      signal: controller.signal,
-      headers: {
-        Accept: "application/json",
-        ...options.headers,
-      },
+  const candidates = [
+    ...PROTECTED_NAMES,
+    ...(value.match(/\b(?=[A-Za-z0-9._/-]*[A-Za-z])(?=[A-Za-z0-9._/-]*\d)[A-Za-z0-9][A-Za-z0-9._/-]*\b/g) || []),
+    ...(value.match(/\b[A-Z]{2,}(?:-[A-Z0-9]+)*\b/g) || []),
+  ];
+
+  [...new Set(candidates)]
+    .sort((left, right) => right.length - left.length)
+    .forEach((token) => {
+      const placeholder = `KRMODEL${protectedValues.length}TOKEN`;
+      const pattern = new RegExp(escapeRegExp(token), "gi");
+
+      if (pattern.test(output)) {
+        protectedValues.push(token);
+        output = output.replace(pattern, placeholder);
+      }
     });
 
-    const payload = await response.json().catch(() => ({}));
-
-    if (!response.ok) {
-      const message =
-        payload.message ||
-        payload.error ||
-        `Translation request failed (${response.status}).`;
-      throw new Error(message);
-    }
-
-    return payload;
-  } finally {
-    clearTimeout(timeout);
-  }
+  return { output, protectedValues };
 }
 
-async function translateWithMyMemory(text, targetLanguage) {
-  const endpoint =
-    process.env.TRANSLATION_API_URL ||
-    "https://api.mymemory.translated.net/get";
-  const query = new URLSearchParams({
-    q: text,
-    langpair: `en|${targetLanguage}`,
-  });
-
-  const email = String(process.env.TRANSLATION_EMAIL || "").trim();
-  if (email) query.set("de", email);
-
-  const payload = await fetchJson(`${endpoint}?${query.toString()}`);
-  const translatedText = payload?.responseData?.translatedText;
-
-  if (!translatedText) {
-    throw new Error("MyMemory returned an empty summary translation.");
-  }
-
-  return decodeHtmlEntities(translatedText);
+function restoreTitleTokens(value, protectedValues) {
+  return protectedValues.reduce((result, token, index) => {
+    return result.replace(new RegExp(`KRMODEL${index}TOKEN`, "g"), token);
+  }, value);
 }
 
-async function translateWithLibreTranslate(text, targetLanguage) {
-  const endpoint =
-    process.env.TRANSLATION_API_URL ||
-    "https://libretranslate.com/translate";
-  const payload = await fetchJson(endpoint, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      q: text,
-      source: "en",
-      target: targetLanguage,
-      format: "text",
-      api_key: process.env.TRANSLATION_API_KEY || undefined,
-    }),
-  });
+function removeBrandPrefix(title, brand) {
+  if (!brand) return title;
 
-  if (!payload.translatedText) {
-    throw new Error("LibreTranslate returned an empty summary translation.");
-  }
-
-  return normalizeText(payload.translatedText);
+  const pattern = new RegExp(`^${escapeRegExp(brand)}(?:\\s+|[-:–—]+\\s*)`, "i");
+  return title.replace(pattern, "").trim();
 }
 
-async function translateWithDeepL(text, targetLanguage) {
-  const apiKey = String(process.env.TRANSLATION_API_KEY || "").trim();
-  if (!apiKey) throw new Error("TRANSLATION_API_KEY is required for DeepL.");
+function localizeTitle(product, language) {
+  const originalTitle = compactTitle(product.title);
+  const brand = normalizeText(product.brand);
+  const withoutBrand = removeBrandPrefix(originalTitle, brand);
+  const { output, protectedValues } = protectTitleTokens(withoutBrand || originalTitle);
 
-  const endpoint =
-    process.env.TRANSLATION_API_URL ||
-    "https://api-free.deepl.com/v2/translate";
-  const deeplTargets = { tr: "TR", ru: "RU", ar: "AR", zh: "ZH-HANS" };
-
-  const payload = await fetchJson(endpoint, {
-    method: "POST",
-    headers: {
-      Authorization: `DeepL-Auth-Key ${apiKey}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      text: [text],
-      source_lang: "EN",
-      target_lang:
-        deeplTargets[targetLanguage] || targetLanguage.toUpperCase(),
-    }),
-  });
-
-  const translatedText = payload?.translations?.[0]?.text;
-  if (!translatedText) {
-    throw new Error("DeepL returned an empty summary translation.");
-  }
-
-  return normalizeText(translatedText);
-}
-
-async function translateRawText(text, targetLanguage) {
-  const provider = getTranslationProvider();
-
-  if (provider === PROVIDER_NAMES.libretranslate) {
-    return translateWithLibreTranslate(text, targetLanguage);
-  }
-
-  if (provider === PROVIDER_NAMES.deepl) {
-    return translateWithDeepL(text, targetLanguage);
-  }
-
-  return translateWithMyMemory(text, targetLanguage);
-}
-
-function splitLongText(value, maximumLength = 440) {
-  const text = normalizeText(value);
-  if (!text) return [];
-  if (text.length <= maximumLength) return [text];
-
-  const chunks = [];
-  const words = text.split(/\s+/);
-  let current = "";
-
-  for (const word of words) {
-    const candidate = current ? `${current} ${word}` : word;
-
-    if (candidate.length > maximumLength && current) {
-      chunks.push(current);
-      current = word;
-    } else {
-      current = candidate;
-    }
-  }
-
-  if (current) chunks.push(current);
-  return chunks;
-}
-
-async function translateSingleText(value, targetLanguage) {
-  const chunks = splitLongText(value);
-  if (chunks.length === 0) return "";
-
-  const translatedChunks = [];
-  for (const chunk of chunks) {
-    translatedChunks.push(await translateRawText(chunk, targetLanguage));
-  }
-
-  return translatedChunks.join(" ").trim();
-}
-
-async function mapWithConcurrency(values, worker, concurrency = 3) {
-  const results = new Array(values.length);
-  let cursor = 0;
-
-  async function run() {
-    while (cursor < values.length) {
-      const index = cursor;
-      cursor += 1;
-      results[index] = await worker(values[index], index);
-    }
-  }
-
-  await Promise.all(
-    Array.from({ length: Math.min(concurrency, values.length) }, () => run())
+  let localized = output;
+  const replacements = [...(TITLE_REPLACEMENTS[language] || [])].sort(
+    (left, right) => right[0].length - left[0].length
   );
 
-  return results;
-}
-
-function createTranslationGroups(values, maximumLength = 430) {
-  const groups = [];
-  let current = [];
-  let currentLength = 0;
-  const separatorLength = SUMMARY_SEPARATOR.length + 2;
-
-  for (const value of values) {
-    const normalized = normalizeText(value);
-    const candidateLength =
-      currentLength + normalized.length + (current.length ? separatorLength : 0);
-
-    if (current.length > 0 && candidateLength > maximumLength) {
-      groups.push(current);
-      current = [normalized];
-      currentLength = normalized.length;
-    } else {
-      current.push(normalized);
-      currentLength = candidateLength;
-    }
-  }
-
-  if (current.length > 0) groups.push(current);
-  return groups;
-}
-
-async function translateTextGroup(group, targetLanguage) {
-  if (group.length === 1) {
-    return [await translateSingleText(group[0], targetLanguage)];
-  }
-
-  const joined = group.join(`\n${SUMMARY_SEPARATOR}\n`);
-
-  try {
-    const translated = await translateSingleText(joined, targetLanguage);
-    const parts = translated
-      .split(SUMMARY_SEPARATOR)
-      .map((part) => normalizeText(part));
-
-    if (parts.length === group.length && parts.every(Boolean)) {
-      return parts;
-    }
-  } catch (error) {
-    console.warn(
-      `[catalog-summary-translation] batch -> ${targetLanguage} failed: ${error.message}`
+  for (const [source, target] of replacements) {
+    localized = localized.replace(
+      new RegExp(`\\b${escapeRegExp(source)}\\b`, "gi"),
+      target
     );
   }
 
-  return mapWithConcurrency(
-    group,
-    async (value) => {
-      try {
-        return await translateSingleText(value, targetLanguage);
-      } catch (error) {
-        console.warn(
-          `[catalog-summary-translation] text -> ${targetLanguage} failed: ${error.message}`
-        );
-        return value;
-      }
-    },
-    2
+  localized = restoreTitleTokens(localized, protectedValues)
+    .replace(/\s+([,.;:])/g, "$1")
+    .replace(/\s{2,}/g, " ")
+    .trim();
+
+  const hasBrand = brand && localized.toLowerCase().startsWith(brand.toLowerCase());
+  const result = brand && !hasBrand ? `${brand} ${localized}` : localized;
+
+  return normalizeText(result || originalTitle).slice(0, 140);
+}
+
+function localizeCategory(product, language) {
+  return (
+    CATEGORY_LABELS[language]?.[product.categoryKey] ||
+    product.categoryLabel ||
+    product.categoryKey
   );
 }
 
-async function translateUniqueTexts(values, targetLanguage) {
-  const uniqueValues = [...new Set(values.map(normalizeText).filter(Boolean))];
-  const groups = createTranslationGroups(uniqueValues);
-  const translatedGroups = await mapWithConcurrency(
-    groups,
-    (group) => translateTextGroup(group, targetLanguage),
-    3
-  );
-  const translatedValues = translatedGroups.flat();
-
-  return new Map(
-    uniqueValues.map((value, index) => [
-      value,
-      translatedValues[index] || value,
-    ])
-  );
-}
-
-function applySummaryTranslation(product, language) {
+function localizeProductSummary(product, language) {
   const fullTranslation = product.translations?.[language];
+
   if (fullTranslation?.title) {
     return applyCachedCatalogTranslation(product, language);
   }
 
-  const summaryTranslation = product.summaryTranslations?.[language];
-  if (!summaryTranslation?.title) return product;
-
   return {
     ...product,
-    title: summaryTranslation.title || product.title,
-    categoryLabel:
-      summaryTranslation.categoryLabel || product.categoryLabel,
+    title: localizeTitle(product, language),
+    categoryLabel: localizeCategory(product, language),
     translationLanguage: language,
+    translationSource: "local-catalog-title-v2",
   };
 }
 
@@ -318,94 +311,16 @@ export async function localizeCatalogProductSummaries(
   requestedLanguage
 ) {
   const language = normalizeCatalogLanguage(requestedLanguage);
+
   if (language === "en" || products.length === 0) return products;
+  return products.map((product) => localizeProductSummary(product, language));
+}
 
-  const missingProducts = products.filter((product) => {
-    const fullTranslation = product.translations?.[language];
-    const summaryTranslation = product.summaryTranslations?.[language];
-    return !fullTranslation?.title && !summaryTranslation?.title;
-  });
-
-  if (missingProducts.length === 0) {
-    return products.map((product) => applySummaryTranslation(product, language));
-  }
-
-  const jobKey = `${language}:${missingProducts
-    .map((product) => product.key)
-    .sort()
-    .join(",")}`;
-
-  let job = summaryTranslationJobs.get(jobKey);
-
-  if (!job) {
-    job = (async () => {
-      try {
-        const texts = missingProducts.flatMap((product) => [
-          product.title,
-          product.categoryLabel,
-        ]);
-        const translatedTexts = await translateUniqueTexts(texts, language);
-        const provider = getTranslationProvider();
-        const translatedAt = new Date().toISOString();
-        const summaries = new Map();
-
-        const operations = missingProducts.map((product) => {
-          const summary = {
-            title:
-              translatedTexts.get(normalizeText(product.title)) || product.title,
-            categoryLabel:
-              translatedTexts.get(normalizeText(product.categoryLabel)) ||
-              product.categoryLabel,
-            provider,
-            translatedAt,
-          };
-
-          summaries.set(product.key, summary);
-
-          return {
-            updateOne: {
-              filter: { _id: product._id },
-              update: {
-                $set: {
-                  [`summaryTranslations.${language}`]: summary,
-                },
-              },
-            },
-          };
-        });
-
-        if (operations.length > 0) {
-          await Product.bulkWrite(operations, { ordered: false });
-        }
-
-        return summaries;
-      } catch (error) {
-        console.warn(
-          `[catalog-summary-translation] ${language} failed: ${error.message}`
-        );
-        return new Map();
-      } finally {
-        summaryTranslationJobs.delete(jobKey);
-      }
-    })();
-
-    summaryTranslationJobs.set(jobKey, job);
-  }
-
-  const createdSummaries = await job;
-
-  return products.map((product) => {
-    const createdSummary = createdSummaries.get(product.key);
-
-    if (createdSummary) {
-      return {
-        ...product,
-        title: createdSummary.title || product.title,
-        categoryLabel: createdSummary.categoryLabel || product.categoryLabel,
-        translationLanguage: language,
-      };
-    }
-
-    return applySummaryTranslation(product, language);
-  });
+export function applyCachedCatalogSummaryTranslation(
+  product,
+  requestedLanguage
+) {
+  const language = normalizeCatalogLanguage(requestedLanguage);
+  if (language === "en") return product;
+  return localizeProductSummary(product, language);
 }
