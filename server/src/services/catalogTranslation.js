@@ -1,16 +1,21 @@
-const SUPPORTED_LANGUAGES = new Set(["en", "tr", "ru", "ar", "zh"]);
-const translationJobs = new Map();
+import { createHash } from "node:crypto";
 
-const PROVIDER_NAMES = {
-  mymemory: "mymemory",
-  libretranslate: "libretranslate",
-  deepl: "deepl",
+export const CATALOG_LANGUAGES = Object.freeze(["en", "tr", "ru", "ar", "zh"]);
+export const TRANSLATABLE_CATALOG_LANGUAGES = Object.freeze([
+  "tr",
+  "ru",
+  "ar",
+  "zh",
+]);
+export const CATALOG_TRANSLATION_SCHEMA_VERSION = 2;
+
+const SUPPORTED_LANGUAGE_SET = new Set(CATALOG_LANGUAGES);
+const DEEPL_TARGET_LANGUAGES = {
+  tr: "TR",
+  ru: "RU",
+  ar: "AR",
+  zh: "ZH-HANS",
 };
-
-export function normalizeCatalogLanguage(value) {
-  const normalized = String(value || "en").trim().toLowerCase().split("-")[0];
-  return SUPPORTED_LANGUAGES.has(normalized) ? normalized : "en";
-}
 
 function normalizeText(value) {
   return String(value || "")
@@ -18,65 +23,294 @@ function normalizeText(value) {
     .trim();
 }
 
-function decodeHtmlEntities(value) {
-  return String(value || "")
-    .replace(/&quot;/g, '"')
-    .replace(/&#39;|&apos;/g, "'")
-    .replace(/&amp;/g, "&")
-    .replace(/&lt;/g, "<")
-    .replace(/&gt;/g, ">");
+function normalizeStringList(value, limit = 12) {
+  if (!Array.isArray(value)) return [];
+
+  return value
+    .map(normalizeText)
+    .filter(Boolean)
+    .slice(0, limit);
 }
 
-function splitLongText(value, maximumLength = 450) {
+function normalizeDetails(value, limit = 16) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return {};
+
+  return Object.fromEntries(
+    Object.entries(value)
+      .map(([key, detailValue]) => [
+        normalizeText(key),
+        normalizeText(detailValue),
+      ])
+      .filter(([key, detailValue]) => key && detailValue)
+      .slice(0, limit)
+  );
+}
+
+export function normalizeCatalogLanguage(value) {
+  const normalized = String(value || "en")
+    .trim()
+    .toLowerCase()
+    .split("-")[0];
+
+  return SUPPORTED_LANGUAGE_SET.has(normalized) ? normalized : "en";
+}
+
+export function buildCatalogSourceSnapshot(product) {
+  return {
+    sourceLanguage: normalizeCatalogLanguage(product.sourceLanguage || "en"),
+    title: normalizeText(product.title),
+    description: normalizeText(product.description),
+    categoryLabel: normalizeText(product.categoryLabel),
+    brand: normalizeText(product.brand),
+    features: normalizeStringList(product.features),
+    details: normalizeDetails(product.details),
+  };
+}
+
+export function calculateProductSourceHash(product) {
+  const snapshot = buildCatalogSourceSnapshot(product);
+  return createHash("sha256")
+    .update(JSON.stringify(snapshot))
+    .digest("hex");
+}
+
+function getProductSourceHash(product) {
+  return calculateProductSourceHash(product);
+}
+
+function getTranslationMeta(product, language) {
+  const meta = product.translationMeta?.[language];
+  return meta && typeof meta === "object" ? meta : {};
+}
+
+function isReadyTranslation(product, language) {
+  if (language === "en") return true;
+
+  const sourceHash = getProductSourceHash(product);
+  const translation = product.translations?.[language];
+  const meta = getTranslationMeta(product, language);
+
+  return Boolean(
+    translation?.title &&
+      meta.status === "ready" &&
+      meta.sourceHash === sourceHash &&
+      Number(meta.schemaVersion) === CATALOG_TRANSLATION_SCHEMA_VERSION
+  );
+}
+
+export function getCatalogTranslationState(product, requestedLanguage) {
+  const language = normalizeCatalogLanguage(requestedLanguage);
+
+  if (language === "en") {
+    return {
+      language,
+      status: "ready",
+      sourceHash: getProductSourceHash(product),
+      available: true,
+    };
+  }
+
+  const meta = getTranslationMeta(product, language);
+  return {
+    language,
+    status: isReadyTranslation(product, language)
+      ? "ready"
+      : meta.status || "missing",
+    sourceHash: meta.sourceHash || "",
+    available: isReadyTranslation(product, language),
+    error: meta.error || "",
+  };
+}
+
+function mergeCatalogTranslation(product, translation, language) {
+  const { translations, translationMeta, ...publicProduct } = product;
+
+  return {
+    ...publicProduct,
+    title: translation.title || publicProduct.title,
+    description: translation.description || publicProduct.description,
+    categoryLabel: translation.categoryLabel || publicProduct.categoryLabel,
+    features: Array.isArray(translation.features)
+      ? translation.features
+      : publicProduct.features,
+    details:
+      translation.details && typeof translation.details === "object"
+        ? translation.details
+        : publicProduct.details,
+    requestedLanguage: language,
+    translationLanguage: language,
+    translationStatus: "ready",
+  };
+}
+
+export function applyCachedCatalogTranslation(productValue, requestedLanguage) {
+  const language = normalizeCatalogLanguage(requestedLanguage);
+  const product =
+    typeof productValue?.toObject === "function"
+      ? productValue.toObject()
+      : productValue;
+
+  if (!product) return product;
+
+  if (language === "en") {
+    const { translations, translationMeta, ...publicProduct } = product;
+    return {
+      ...publicProduct,
+      requestedLanguage: language,
+      translationLanguage: "en",
+      translationStatus: "ready",
+    };
+  }
+
+  if (isReadyTranslation(product, language)) {
+    return mergeCatalogTranslation(
+      product,
+      product.translations[language],
+      language
+    );
+  }
+
+  const { translations, translationMeta, ...publicProduct } = product;
+  return {
+    ...publicProduct,
+    requestedLanguage: language,
+    translationLanguage: "en",
+    translationStatus: getTranslationMeta(product, language).status || "missing",
+  };
+}
+
+function getDeepLApiKey() {
+  const apiKey = normalizeText(
+    process.env.DEEPL_API_KEY || process.env.TRANSLATION_API_KEY
+  );
+
+  if (!apiKey) {
+    throw new Error(
+      "DEEPL_API_KEY is missing. Add it to server/.env before translating the catalog."
+    );
+  }
+
+  return apiKey;
+}
+
+function getDeepLEndpoint(apiKey) {
+  const configured = normalizeText(
+    process.env.DEEPL_API_URL || process.env.TRANSLATION_API_URL
+  );
+
+  if (configured) return configured.replace(/\/$/, "");
+  return apiKey.endsWith(":fx")
+    ? "https://api-free.deepl.com/v2/translate"
+    : "https://api.deepl.com/v2/translate";
+}
+
+function getDeepLGlossaryId(language) {
+  const environmentKey = `DEEPL_GLOSSARY_ID_${language.toUpperCase()}`;
+  return normalizeText(process.env[environmentKey]);
+}
+
+function collectProtectedTerms(product) {
+  const source = buildCatalogSourceSnapshot(product);
+  const combined = [
+    source.title,
+    source.description,
+    ...source.features,
+    ...Object.values(source.details),
+  ].join(" ");
+
+  const detectedTerms = [
+    ...(combined.match(
+      /\b(?=[A-Za-z0-9._/+%-]*[A-Za-z])(?=[A-Za-z0-9._/+%-]*\d)[A-Za-z0-9][A-Za-z0-9._/+%-]*\b/g
+    ) || []),
+    ...(combined.match(/\b[A-Z]{2,}(?:-[A-Z0-9]+)*\b/g) || []),
+    ...(combined.match(/\b\d+(?:[.,]\d+)?\s?(?:mm|cm|m|km|g|kg|ml|l|v|w|hz|mah|gb|tb|inch|in)\b/gi) || []),
+  ];
+
+  const protectedBrand =
+    source.brand &&
+    source.brand.toLowerCase() !== source.categoryLabel.toLowerCase()
+      ? source.brand
+      : "";
+
+  return [...new Set([protectedBrand, ...detectedTerms].filter(Boolean))]
+    .sort((left, right) => right.length - left.length)
+    .slice(0, 80);
+}
+
+function escapeRegExp(value) {
+  return String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function protectText(value, protectedTerms) {
+  let text = normalizeText(value);
+  const replacements = [];
+
+  protectedTerms.forEach((term) => {
+    const pattern = new RegExp(escapeRegExp(term), "gi");
+
+    if (!pattern.test(text)) return;
+
+    const placeholder = `KRPROTECTED${replacements.length}TOKEN`;
+    replacements.push(term);
+    text = text.replace(pattern, placeholder);
+  });
+
+  return { text, replacements };
+}
+
+function restoreProtectedText(value, replacements) {
+  return replacements.reduce((result, term, index) => {
+    const pattern = new RegExp(
+      `KR\\s*PROTECTED\\s*${index}\\s*TOKEN`,
+      "gi"
+    );
+    return result.replace(pattern, term);
+  }, normalizeText(value));
+}
+
+function shouldTranslateDetailValue(value) {
   const text = normalizeText(value);
-  if (!text) return [];
-  if (text.length <= maximumLength) return [text];
+  if (text.length < 3) return false;
+  if (/^https?:\/\//i.test(text)) return false;
+  if (/^[\d\s.,:/+%°\-"'×x()]+$/.test(text)) return false;
 
-  const sentences = text.split(/(?<=[.!?])\s+/);
-  const chunks = [];
-  let current = "";
+  const letters = (text.match(/\p{L}/gu) || []).length;
+  const digits = (text.match(/\d/g) || []).length;
+  return letters >= 3 && letters >= digits;
+}
 
-  function pushCurrent() {
-    if (current.trim()) chunks.push(current.trim());
-    current = "";
-  }
+function createTranslationItems(product) {
+  const source = buildCatalogSourceSnapshot(product);
+  const items = [
+    { type: "title", value: source.title },
+    { type: "description", value: source.description },
+    { type: "categoryLabel", value: source.categoryLabel },
+  ];
 
-  for (const sentence of sentences) {
-    if (sentence.length > maximumLength) {
-      pushCurrent();
-      const words = sentence.split(/\s+/);
-      let wordChunk = "";
+  source.features.forEach((feature, index) => {
+    items.push({ type: "feature", index, value: feature });
+  });
 
-      for (const word of words) {
-        const candidate = wordChunk ? `${wordChunk} ${word}` : word;
-        if (candidate.length > maximumLength && wordChunk) {
-          chunks.push(wordChunk);
-          wordChunk = word;
-        } else {
-          wordChunk = candidate;
-        }
-      }
+  Object.entries(source.details).forEach(([label, value], index) => {
+    items.push({ type: "detailLabel", index, label, value: label });
 
-      if (wordChunk) chunks.push(wordChunk);
-      continue;
+    if (shouldTranslateDetailValue(value)) {
+      items.push({ type: "detailValue", index, label, value });
     }
+  });
 
-    const candidate = current ? `${current} ${sentence}` : sentence;
-    if (candidate.length > maximumLength) {
-      pushCurrent();
-      current = sentence;
-    } else {
-      current = candidate;
-    }
-  }
-
-  pushCurrent();
-  return chunks;
+  return {
+    source,
+    items: items.filter((item) => item.value),
+  };
 }
 
 async function fetchJson(url, options = {}) {
   const controller = new AbortController();
-  const timeoutMs = Number(process.env.TRANSLATION_TIMEOUT_MS || 15000);
+  const timeoutMs = Math.max(
+    5000,
+    Number(process.env.TRANSLATION_TIMEOUT_MS || 30000)
+  );
   const timeout = setTimeout(() => controller.abort(), timeoutMs);
 
   try {
@@ -94,9 +328,12 @@ async function fetchJson(url, options = {}) {
     if (!response.ok) {
       const message =
         payload.message ||
+        payload.detail ||
         payload.error ||
         `Translation request failed (${response.status}).`;
-      throw new Error(message);
+      const error = new Error(message);
+      error.status = response.status;
+      throw error;
     }
 
     return payload;
@@ -105,59 +342,30 @@ async function fetchJson(url, options = {}) {
   }
 }
 
-async function translateWithMyMemory(text, targetLanguage) {
-  const endpoint =
-    process.env.TRANSLATION_API_URL ||
-    "https://api.mymemory.translated.net/get";
-  const query = new URLSearchParams({
-    q: text,
-    langpair: `en|${targetLanguage}`,
-  });
+async function translateWithDeepL({
+  texts,
+  targetLanguage,
+  context,
+  glossaryId,
+}) {
+  const apiKey = getDeepLApiKey();
+  const endpoint = getDeepLEndpoint(apiKey);
+  const targetLang = DEEPL_TARGET_LANGUAGES[targetLanguage];
 
-  const email = String(process.env.TRANSLATION_EMAIL || "").trim();
-  if (email) query.set("de", email);
-
-  const payload = await fetchJson(`${endpoint}?${query.toString()}`);
-  const translatedText = payload?.responseData?.translatedText;
-
-  if (!translatedText) {
-    throw new Error("MyMemory returned an empty translation.");
+  if (!targetLang) {
+    throw new Error(`DeepL target language is not configured: ${targetLanguage}`);
   }
 
-  return decodeHtmlEntities(translatedText);
-}
+  const body = {
+    text: texts,
+    source_lang: "EN",
+    target_lang: targetLang,
+    preserve_formatting: true,
+    split_sentences: "nonewlines",
+  };
 
-async function translateWithLibreTranslate(text, targetLanguage) {
-  const endpoint =
-    process.env.TRANSLATION_API_URL ||
-    "https://libretranslate.com/translate";
-  const payload = await fetchJson(endpoint, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      q: text,
-      source: "en",
-      target: targetLanguage,
-      format: "text",
-      api_key: process.env.TRANSLATION_API_KEY || undefined,
-    }),
-  });
-
-  if (!payload.translatedText) {
-    throw new Error("LibreTranslate returned an empty translation.");
-  }
-
-  return normalizeText(payload.translatedText);
-}
-
-async function translateWithDeepL(text, targetLanguage) {
-  const apiKey = String(process.env.TRANSLATION_API_KEY || "").trim();
-  if (!apiKey) throw new Error("TRANSLATION_API_KEY is required for DeepL.");
-
-  const endpoint =
-    process.env.TRANSLATION_API_URL ||
-    "https://api-free.deepl.com/v2/translate";
-  const deeplTargets = { tr: "TR", ru: "RU", ar: "AR", zh: "ZH-HANS" };
+  if (context) body.context = context;
+  if (glossaryId) body.glossary_id = glossaryId;
 
   const payload = await fetchJson(endpoint, {
     method: "POST",
@@ -165,185 +373,282 @@ async function translateWithDeepL(text, targetLanguage) {
       Authorization: `DeepL-Auth-Key ${apiKey}`,
       "Content-Type": "application/json",
     },
-    body: JSON.stringify({
-      text: [text],
-      source_lang: "EN",
-      target_lang:
-        deeplTargets[targetLanguage] || targetLanguage.toUpperCase(),
-    }),
+    body: JSON.stringify(body),
   });
 
-  const translatedText = payload?.translations?.[0]?.text;
-  if (!translatedText) throw new Error("DeepL returned an empty translation.");
-  return normalizeText(translatedText);
-}
+  const translatedTexts = Array.isArray(payload.translations)
+    ? payload.translations.map((item) => normalizeText(item?.text))
+    : [];
 
-function getTranslationProvider() {
-  const configured = String(
-    process.env.TRANSLATION_PROVIDER || "mymemory"
-  )
-    .trim()
-    .toLowerCase();
-  return PROVIDER_NAMES[configured] || PROVIDER_NAMES.mymemory;
-}
-
-async function translateChunk(text, targetLanguage) {
-  const provider = getTranslationProvider();
-
-  if (provider === PROVIDER_NAMES.libretranslate) {
-    return translateWithLibreTranslate(text, targetLanguage);
+  if (translatedTexts.length !== texts.length || translatedTexts.some((text) => !text)) {
+    throw new Error("DeepL returned an incomplete translation batch.");
   }
 
-  if (provider === PROVIDER_NAMES.deepl) {
-    return translateWithDeepL(text, targetLanguage);
-  }
-
-  return translateWithMyMemory(text, targetLanguage);
+  return translatedTexts;
 }
 
-async function translateText(value, targetLanguage) {
-  const text = normalizeText(value);
-  if (!text || targetLanguage === "en") return text;
+async function translateTexts({ texts, targetLanguage, context }) {
+  const provider = normalizeText(
+    process.env.TRANSLATION_PROVIDER || "deepl"
+  ).toLowerCase();
 
-  const chunks = splitLongText(text);
-  const translatedChunks = [];
-
-  for (const chunk of chunks) {
-    translatedChunks.push(await translateChunk(chunk, targetLanguage));
+  if (provider !== "deepl") {
+    throw new Error(
+      `Unsupported production translation provider: ${provider}. Use TRANSLATION_PROVIDER=deepl.`
+    );
   }
 
-  return translatedChunks.join(" ").trim();
+  return translateWithDeepL({
+    texts,
+    targetLanguage,
+    context,
+    glossaryId: getDeepLGlossaryId(targetLanguage),
+  });
 }
 
-async function mapWithConcurrency(values, worker, concurrency = 2) {
-  const results = new Array(values.length);
-  let cursor = 0;
+function buildTranslationPayload(product, language, items, translatedValues) {
+  const source = buildCatalogSourceSnapshot(product);
+  const detailEntries = Object.entries(source.details);
+  const payload = {
+    title: source.title,
+    description: source.description,
+    categoryLabel: source.categoryLabel,
+    features: [...source.features],
+    details: { ...source.details },
+  };
 
-  async function run() {
-    while (cursor < values.length) {
-      const index = cursor;
-      cursor += 1;
-      results[index] = await worker(values[index], index);
+  items.forEach((item, index) => {
+    const translatedValue = translatedValues[index] || item.value;
+
+    if (item.type === "title") payload.title = translatedValue;
+    if (item.type === "description") payload.description = translatedValue;
+    if (item.type === "categoryLabel") payload.categoryLabel = translatedValue;
+    if (item.type === "feature") payload.features[item.index] = translatedValue;
+
+    if (item.type === "detailLabel") {
+      const [, originalValue] = detailEntries[item.index] || [];
+      delete payload.details[item.label];
+      payload.details[translatedValue] = originalValue || "";
+    }
+
+    if (item.type === "detailValue") {
+      const [originalLabel] = detailEntries[item.index] || [];
+      const translatedLabelItem = items.find(
+        (candidate) =>
+          candidate.type === "detailLabel" && candidate.index === item.index
+      );
+      const translatedLabelIndex = items.indexOf(translatedLabelItem);
+      const translatedLabel =
+        translatedValues[translatedLabelIndex] || originalLabel || item.label;
+
+      payload.details[translatedLabel] = translatedValue;
+    }
+  });
+
+  return {
+    ...payload,
+    language,
+    sourceLanguage: "en",
+  };
+}
+
+function countTargetScriptCharacters(text, language) {
+  const patterns = {
+    ru: /[\u0400-\u04FF]/g,
+    ar: /[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF]/g,
+    zh: /[\u3400-\u4DBF\u4E00-\u9FFF]/g,
+  };
+
+  const pattern = patterns[language];
+  return pattern ? (String(text).match(pattern) || []).length : 0;
+}
+
+function validateTranslation(product, language, translation) {
+  const source = buildCatalogSourceSnapshot(product);
+  const translatedCombined = [
+    translation.title,
+    translation.description,
+    ...translation.features,
+    ...Object.keys(translation.details || {}),
+    ...Object.values(translation.details || {}),
+  ].join(" ");
+
+  if (!normalizeText(translation.title)) {
+    throw new Error("Translated title is empty.");
+  }
+
+  if (
+    source.description &&
+    !normalizeText(translation.description)
+  ) {
+    throw new Error("Translated description is empty.");
+  }
+
+  const sourceComparable = normalizeText(
+    `${source.title} ${source.description}`
+  ).toLowerCase();
+  const translatedComparable = normalizeText(
+    `${translation.title} ${translation.description}`
+  ).toLowerCase();
+
+  if (
+    sourceComparable.length > 40 &&
+    sourceComparable === translatedComparable
+  ) {
+    throw new Error("Provider returned the original English content.");
+  }
+
+  if (["ru", "ar", "zh"].includes(language)) {
+    const targetCharacters = countTargetScriptCharacters(
+      translatedCombined,
+      language
+    );
+
+    if (translatedCombined.length > 60 && targetCharacters < 4) {
+      throw new Error(
+        `Translation validation failed for ${language}: target script was not detected.`
+      );
     }
   }
 
-  await Promise.all(
-    Array.from({ length: Math.min(concurrency, values.length) }, () => run())
+  if (/KR\s*PROTECTED\s*\d+\s*TOKEN/i.test(translatedCombined)) {
+    throw new Error("A protected product token could not be restored.");
+  }
+}
+
+export async function createCatalogTranslation(product, requestedLanguage) {
+  const language = normalizeCatalogLanguage(requestedLanguage);
+
+  if (!TRANSLATABLE_CATALOG_LANGUAGES.includes(language)) {
+    throw new Error(`Catalog translation language is not supported: ${language}`);
+  }
+
+  const sourceHash = getProductSourceHash(product);
+  const { source, items } = createTranslationItems(product);
+  const protectedTerms = collectProtectedTerms(product);
+  const protectedItems = items.map((item) =>
+    protectText(item.value, protectedTerms)
   );
 
-  return results;
-}
-
-function mergeTranslation(product, translation, language) {
-  return {
-    ...product,
-    title: translation.title || product.title,
-    description: translation.description || product.description,
-    categoryLabel: translation.categoryLabel || product.categoryLabel,
-    features: Array.isArray(translation.features)
-      ? translation.features
-      : product.features,
-    details:
-      translation.details && typeof translation.details === "object"
-        ? translation.details
-        : product.details,
-    translationLanguage: language,
-  };
-}
-
-async function createTranslation(product, targetLanguage) {
-  const sourceFeatures = Array.isArray(product.features)
-    ? product.features.filter(Boolean).slice(0, 8)
-    : [];
-  const sourceDetails =
-    product.details && typeof product.details === "object"
-      ? Object.entries(product.details).slice(0, 10)
-      : [];
-
-  const [title, description, categoryLabel, features, detailLabels] =
-    await Promise.all([
-      translateText(product.title, targetLanguage),
-      translateText(product.description, targetLanguage),
-      translateText(product.categoryLabel, targetLanguage),
-      mapWithConcurrency(
-        sourceFeatures,
-        (feature) => translateText(feature, targetLanguage),
-        2
-      ),
-      mapWithConcurrency(
-        sourceDetails,
-        ([label]) => translateText(label, targetLanguage),
-        2
-      ),
-    ]);
-
-  return {
-    title,
-    description,
-    categoryLabel,
-    features,
-    details: Object.fromEntries(
-      sourceDetails.map(([, value], index) => [detailLabels[index], value])
+  const translatedValues = await translateTexts({
+    texts: protectedItems.map((item) => item.text),
+    targetLanguage: language,
+    context: normalizeText(
+      `E-commerce product catalog. Brand: ${source.brand || "unknown"}. Category: ${source.categoryLabel || "general"}. Preserve brand names, model numbers, units, technical codes and compatibility names exactly.`
     ),
-    provider: getTranslationProvider(),
+  });
+
+  const restoredValues = translatedValues.map((value, index) =>
+    restoreProtectedText(value, protectedItems[index].replacements)
+  );
+  const translation = buildTranslationPayload(
+    product,
+    language,
+    items,
+    restoredValues
+  );
+
+  validateTranslation(product, language, translation);
+
+  return {
+    ...translation,
+    sourceHash,
+    schemaVersion: CATALOG_TRANSLATION_SCHEMA_VERSION,
+    provider: "deepl",
     translatedAt: new Date().toISOString(),
+    reviewed: false,
   };
 }
 
-export async function localizeCatalogProduct(
+export async function translateCatalogProductDocument(
   productDocument,
-  requestedLanguage
+  requestedLanguage,
+  options = {}
 ) {
   const language = normalizeCatalogLanguage(requestedLanguage);
-  const plainProduct =
-    typeof productDocument.toObject === "function"
-      ? productDocument.toObject()
-      : productDocument;
+  const force = Boolean(options.force);
+  const product = productDocument.toObject();
+  const sourceHash = calculateProductSourceHash(product);
 
-  if (language === "en") return plainProduct;
-
-  const cachedTranslation = plainProduct.translations?.[language];
-  if (cachedTranslation?.title) {
-    return mergeTranslation(plainProduct, cachedTranslation, language);
+  if (!force && isReadyTranslation({ ...product, sourceHash }, language)) {
+    return {
+      status: "skipped",
+      product: applyCachedCatalogTranslation(
+        { ...product, sourceHash },
+        language
+      ),
+    };
   }
 
-  const jobKey = `${plainProduct._id || plainProduct.key}:${language}`;
-  if (translationJobs.has(jobKey)) return translationJobs.get(jobKey);
+  const previousMeta = getTranslationMeta(product, language);
+  const attempts = Number(previousMeta.attempts || 0) + 1;
 
-  const job = (async () => {
-    try {
-      const translation = await createTranslation(plainProduct, language);
+  productDocument.sourceLanguage = "en";
+  productDocument.sourceHash = sourceHash;
+  productDocument.translationMeta = {
+    ...(productDocument.translationMeta || {}),
+    [language]: {
+      status: "processing",
+      sourceHash,
+      schemaVersion: CATALOG_TRANSLATION_SCHEMA_VERSION,
+      provider: "deepl",
+      attempts,
+      startedAt: new Date().toISOString(),
+      error: "",
+    },
+  };
+  productDocument.markModified("translationMeta");
+  await productDocument.save();
 
-      if (typeof productDocument.save === "function") {
-        productDocument.translations = {
-          ...(productDocument.translations || {}),
-          [language]: translation,
-        };
-        productDocument.markModified("translations");
-        await productDocument.save();
-      }
+  try {
+    const translation = await createCatalogTranslation(
+      { ...product, sourceHash },
+      language
+    );
 
-      return mergeTranslation(plainProduct, translation, language);
-    } catch (error) {
-      console.warn(
-        `[catalog-translation] ${plainProduct.key} -> ${language} failed: ${error.message}`
-      );
-      return plainProduct;
-    } finally {
-      translationJobs.delete(jobKey);
-    }
-  })();
+    productDocument.translations = {
+      ...(productDocument.translations || {}),
+      [language]: translation,
+    };
+    productDocument.translationMeta = {
+      ...(productDocument.translationMeta || {}),
+      [language]: {
+        status: "ready",
+        sourceHash,
+        schemaVersion: CATALOG_TRANSLATION_SCHEMA_VERSION,
+        provider: translation.provider,
+        attempts,
+        translatedAt: translation.translatedAt,
+        error: "",
+      },
+    };
+    productDocument.markModified("translations");
+    productDocument.markModified("translationMeta");
+    await productDocument.save();
 
-  translationJobs.set(jobKey, job);
-  return job;
-}
+    return {
+      status: "translated",
+      product: applyCachedCatalogTranslation(
+        productDocument.toObject(),
+        language
+      ),
+    };
+  } catch (error) {
+    productDocument.translationMeta = {
+      ...(productDocument.translationMeta || {}),
+      [language]: {
+        status: "failed",
+        sourceHash,
+        schemaVersion: CATALOG_TRANSLATION_SCHEMA_VERSION,
+        provider: "deepl",
+        attempts,
+        failedAt: new Date().toISOString(),
+        error: String(error.message || error).slice(0, 500),
+      },
+    };
+    productDocument.markModified("translationMeta");
+    await productDocument.save();
 
-export function applyCachedCatalogTranslation(product, requestedLanguage) {
-  const language = normalizeCatalogLanguage(requestedLanguage);
-  if (language === "en") return product;
-
-  const translation = product.translations?.[language];
-  return translation?.title
-    ? mergeTranslation(product, translation, language)
-    : product;
+    throw error;
+  }
 }
