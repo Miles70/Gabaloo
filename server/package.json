@@ -6,7 +6,9 @@
   "scripts": {
     "dev": "node --watch src/index.js",
     "start": "node src/index.js",
-    "seed": "node src/scripts/seedProducts.js"
+    "seed": "node src/scripts/seedProducts.js",
+    "translate": "node src/scripts/translateCatalog.js",
+    "translate:status": "node src/scripts/translateCatalog.js --status"
   },
   "dependencies": {
     "cors": "^2.8.6",
