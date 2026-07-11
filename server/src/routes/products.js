@@ -5,6 +5,7 @@ import {
   localizeCatalogProduct,
   normalizeCatalogLanguage,
 } from "../services/catalogTranslation.js";
+import { localizeCatalogProductSummaries } from "../services/catalogSummaryTranslation.js";
 
 export const productsRouter = Router();
 
@@ -104,8 +105,9 @@ productsRouter.get("/", async (request, response, next) => {
     ]);
 
     const totalPages = Math.max(1, Math.ceil(total / limit));
-    const localizedProducts = products.map((product) =>
-      applyCachedCatalogTranslation(product, language)
+    const localizedProducts = await localizeCatalogProductSummaries(
+      products,
+      language
     );
 
     response.json({
