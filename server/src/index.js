@@ -10,11 +10,9 @@ let server;
 async function startServer() {
   await connectDatabase();
 
-  if (String(process.env.AUTO_SEED_PRODUCTS || "true").toLowerCase() === "true") {
-    const result = await syncProductsFromCatalog();
-    console.log(
-      `Product catalog synced: ${result.modifiedCount || 0} updated, ${result.upsertedCount || 0} created.`
-    );
+  const cleanupResult = await syncProductsFromCatalog();
+  if (cleanupResult.deletedCount > 0) {
+    console.log(`Legacy demo products removed: ${cleanupResult.deletedCount}.`);
   }
 
   server = app.listen(port, () => {
