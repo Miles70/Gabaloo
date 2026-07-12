@@ -4,6 +4,17 @@ import { Product } from "../models/Product.js";
 export const productListRouter = Router();
 
 const QUALITY_SOURCE = "amazon-reviews-2023";
+const CATEGORY_GROUPS = {
+  electronics: ["electronics", "mobile"],
+  fashion: ["fashion"],
+  homeLivingOffice: ["home", "office", "appliances"],
+  autoGardenTools: ["automotive", "tools"],
+  motherBabyToys: ["baby", "toys"],
+  sportsOutdoor: ["sports"],
+  beautyCare: ["beauty"],
+  supermarketPets: ["pets"],
+  booksMusicFilmHobby: ["gaming"],
+};
 const SHOWCASE_CATEGORIES = [
   "electronics",
   "mobile",
@@ -30,6 +41,7 @@ productListRouter.get("/", async (request, response, next) => {
     const limit = Math.min(Math.max(requestedLimit, 8), 100);
     const search = String(request.query.search || "").trim();
     const category = String(request.query.category || "").trim().toLowerCase();
+    const group = String(request.query.group || "").trim();
     const sortMode = String(request.query.sort || "popular").trim().toLowerCase();
     const filter = {
       isActive: true,
@@ -44,6 +56,8 @@ productListRouter.get("/", async (request, response, next) => {
       filter["images.1"] = { $exists: true };
       filter.title = { $not: SHOWCASE_EXCLUDED_TITLE_PATTERN };
       filter.$expr = { $gt: ["$oldPrice", "$price"] };
+    } else if (group && CATEGORY_GROUPS[group]) {
+      filter.categoryKey = { $in: CATEGORY_GROUPS[group] };
     } else if (category) {
       filter.categoryKey = category;
     }
