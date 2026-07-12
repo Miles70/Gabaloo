@@ -11,7 +11,7 @@ productListRouter.get("/", async (request, response, next) => {
   try {
     const requestedPage = Number.parseInt(request.query.page, 10) || 1;
     const requestedLimit = Number.parseInt(request.query.limit, 10) || 24;
-    const limit = Math.min(Math.max(requestedLimit, 8), 60);
+    const limit = Math.min(Math.max(requestedLimit, 8), 100);
     const search = String(request.query.search || "").trim();
     const category = String(request.query.category || "").trim().toLowerCase();
     const filter = { isActive: true };
