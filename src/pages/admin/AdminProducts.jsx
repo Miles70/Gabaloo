@@ -1,7 +1,12 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Package, RefreshCw, Save, Search } from "lucide-react";
+import { Package, Plus, RefreshCw, Save, Search } from "lucide-react";
+import ProductCreateModal from "../../components/admin/ProductCreateModal";
 import { useAdminAuth } from "../../context/AdminAuthContext";
-import { getAdminProducts, updateAdminProduct } from "../../services/adminApi";
+import {
+  createAdminProduct,
+  getAdminProducts,
+  updateAdminProduct,
+} from "../../services/adminApi";
 
 function AdminProducts() {
   const { token } = useAdminAuth();
@@ -10,6 +15,7 @@ function AdminProducts() {
   const [savingKey, setSavingKey] = useState("");
   const [search, setSearch] = useState("");
   const [isLoading, setIsLoading] = useState(true);
+  const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
 
@@ -55,6 +61,14 @@ function AdminProducts() {
     setSuccess("");
   }
 
+  async function createProduct(payload) {
+    setError("");
+    setSuccess("");
+    const data = await createAdminProduct(token, payload);
+    setProducts((current) => [...current, data.product]);
+    setSuccess(`${data.product.title} kataloğa eklendi.`);
+  }
+
   async function saveProduct(product) {
     setSavingKey(product.key);
     setError("");
@@ -94,9 +108,14 @@ function AdminProducts() {
           <h1>Ürünler</h1>
           <p>Fiyat, stok, rozet ve yayın durumunu doğrudan MongoDB kataloğunda güncelle.</p>
         </div>
-        <button className="admin-secondary-button" type="button" onClick={loadProducts} disabled={isLoading}>
-          <RefreshCw size={18} className={isLoading ? "is-spinning" : ""} /> Yenile
-        </button>
+        <div className="admin-heading-actions">
+          <button className="admin-primary-button" type="button" onClick={() => setIsCreateOpen(true)}>
+            <Plus size={18} /> Yeni ürün
+          </button>
+          <button className="admin-secondary-button" type="button" onClick={loadProducts} disabled={isLoading}>
+            <RefreshCw size={18} className={isLoading ? "is-spinning" : ""} /> Yenile
+          </button>
+        </div>
       </div>
 
       <section className="admin-toolbar">
@@ -231,6 +250,10 @@ function AdminProducts() {
           </table>
         </div>
       </section>
+
+      {isCreateOpen ? (
+        <ProductCreateModal onClose={() => setIsCreateOpen(false)} onCreate={createProduct} />
+      ) : null}
     </div>
   );
 }
