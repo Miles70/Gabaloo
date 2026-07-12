@@ -2,6 +2,7 @@ import { Product } from "../models/Product.js";
 
 const LONG_TITLE_MIN_CHARS = 95;
 const LONG_TITLE_MIN_WORDS = 16;
+const MIN_USEFUL_SEGMENT_CHARS = 8;
 const TARGET_MAX_CHARS = 72;
 const TARGET_MAX_WORDS = 11;
 
@@ -28,11 +29,14 @@ function shortenTitle(originalTitle) {
     title.split(/\s+(?:\||•|–|—|;|\/{2,})\s+/)[0] || title,
   );
 
-  if (firstSegment.length >= 18 && firstSegment.length <= TARGET_MAX_CHARS) {
+  if (
+    firstSegment.length >= MIN_USEFUL_SEGMENT_CHARS &&
+    firstSegment.length <= TARGET_MAX_CHARS
+  ) {
     return firstSegment;
   }
 
-  const source = firstSegment.length >= 18 ? firstSegment : title;
+  const source = firstSegment.length >= MIN_USEFUL_SEGMENT_CHARS ? firstSegment : title;
   const words = source.split(" ").filter(Boolean);
   const selectedWords = [];
 
@@ -47,7 +51,7 @@ function shortenTitle(originalTitle) {
 
   let shortened = trimTrailingJoiners(selectedWords.join(" "));
 
-  if (shortened.length < 18) {
+  if (shortened.length < MIN_USEFUL_SEGMENT_CHARS) {
     shortened = trimTrailingJoiners(source.slice(0, TARGET_MAX_CHARS).replace(/\s+\S*$/, ""));
   }
 
