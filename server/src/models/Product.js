@@ -14,6 +14,11 @@ const productSchema = new mongoose.Schema(
       required: true,
       trim: true,
     },
+    description: {
+      type: String,
+      default: "",
+      trim: true,
+    },
     categoryKey: {
       type: String,
       required: true,
