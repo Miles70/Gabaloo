@@ -1,46 +1,62 @@
-import { useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Search } from "lucide-react";
-import products from "../../data/products";
 import { useLanguage } from "../../i18n/LanguageContext";
+import { getStoreProducts } from "../../services/productsApi";
 import "./SearchBar.css";
+
+function categoryLabel(categoryKey, t) {
+  if (!categoryKey) return "General";
+
+  const translationKey = `categories.${categoryKey}.title`;
+  const translated = t(translationKey);
+
+  if (translated !== translationKey) return translated;
+
+  return categoryKey
+    .replace(/[-_]+/g, " ")
+    .replace(/\b\w/g, (letter) => letter.toUpperCase());
+}
 
 function SearchBar() {
   const { t } = useLanguage();
   const navigate = useNavigate();
-
   const [searchValue, setSearchValue] = useState("");
   const [isFocused, setIsFocused] = useState(false);
   const [activeIndex, setActiveIndex] = useState(-1);
+  const [suggestions, setSuggestions] = useState([]);
 
-  const query = searchValue.trim().toLowerCase();
+  const query = searchValue.trim();
 
-  const suggestions = useMemo(() => {
-    if (!query) {
-      return [];
+  useEffect(() => {
+    let isCancelled = false;
+
+    if (query.length < 2) {
+      setSuggestions([]);
+      return undefined;
     }
 
-    return products
-      .map((product) => {
-        const categoryTitle = t(`categories.${product.categoryKey}.title`);
+    const timer = window.setTimeout(() => {
+      getStoreProducts({ page: 1, limit: 8, search: query })
+        .then((data) => {
+          if (!isCancelled) {
+            setSuggestions(
+              (data.products || []).slice(0, 6).map((product) => ({
+                ...product,
+                categoryTitle: categoryLabel(product.categoryKey, t),
+              })),
+            );
+          }
+        })
+        .catch(() => {
+          if (!isCancelled) setSuggestions([]);
+        });
+    }, 250);
 
-        const searchableText = [
-          product.title,
-          product.categoryKey,
-          categoryTitle,
-          String(product.price),
-        ]
-          .join(" ")
-          .toLowerCase();
-
-        return {
-          ...product,
-          categoryTitle,
-          searchableText,
-        };
-      })
-      .filter((product) => product.searchableText.includes(query))
-      .slice(0, 6);
+    return () => {
+      isCancelled = true;
+      window.clearTimeout(timer);
+    };
   }, [query, t]);
 
   const shouldShowSuggestions = isFocused && suggestions.length > 0;
@@ -53,43 +69,43 @@ function SearchBar() {
       return;
     }
 
-    navigate(`/products?search=${encodeURIComponent(cleanValue)}`);
+    navigate(`/products?search=${encodeURIComponent(cleanValue)}&page=1`);
     setIsFocused(false);
     setActiveIndex(-1);
+  }
+
+  function goToProduct(product) {
+    setSearchValue(product.title);
+    setIsFocused(false);
+    setActiveIndex(-1);
+    navigate(`/products/${encodeURIComponent(product.key)}`);
   }
 
   function handleSubmit(event) {
     event.preventDefault();
 
     if (activeIndex >= 0 && suggestions[activeIndex]) {
-      goToSearch(suggestions[activeIndex].title);
+      goToProduct(suggestions[activeIndex]);
       return;
     }
 
     goToSearch(searchValue);
   }
 
-  function handleSuggestionClick(productTitle) {
-    setSearchValue(productTitle);
-    goToSearch(productTitle);
-  }
-
   function handleKeyDown(event) {
-    if (!shouldShowSuggestions) {
-      return;
-    }
+    if (!shouldShowSuggestions) return;
 
     if (event.key === "ArrowDown") {
       event.preventDefault();
       setActiveIndex((currentIndex) =>
-        currentIndex >= suggestions.length - 1 ? 0 : currentIndex + 1
+        currentIndex >= suggestions.length - 1 ? 0 : currentIndex + 1,
       );
     }
 
     if (event.key === "ArrowUp") {
       event.preventDefault();
       setActiveIndex((currentIndex) =>
-        currentIndex <= 0 ? suggestions.length - 1 : currentIndex - 1
+        currentIndex <= 0 ? suggestions.length - 1 : currentIndex - 1,
       );
     }
 
@@ -112,7 +128,7 @@ function SearchBar() {
           spellCheck="false"
           onFocus={() => setIsFocused(true)}
           onBlur={() => {
-            setTimeout(() => {
+            window.setTimeout(() => {
               setIsFocused(false);
               setActiveIndex(-1);
             }, 120);
@@ -127,32 +143,34 @@ function SearchBar() {
         <button type="submit">{t("search.button")}</button>
       </form>
 
-      {shouldShowSuggestions && (
+      {shouldShowSuggestions ? (
         <div className="searchSuggestions">
           {suggestions.map((product, index) => (
             <button
               type="button"
               key={product.key}
-              className={
-                index === activeIndex
-                  ? "searchSuggestion active"
-                  : "searchSuggestion"
-              }
+              className={index === activeIndex ? "searchSuggestion active" : "searchSuggestion"}
               onMouseEnter={() => setActiveIndex(index)}
-              onClick={() => handleSuggestionClick(product.title)}
+              onClick={() => goToProduct(product)}
             >
-              <span className="suggestionIcon">{product.image}</span>
+              <span className="suggestionIcon">
+                {product.imageUrl ? (
+                  <img src={product.imageUrl} alt="" loading="lazy" />
+                ) : (
+                  product.image || product.title?.charAt(0)?.toUpperCase() || "K"
+                )}
+              </span>
 
               <span className="suggestionContent">
                 <strong>{product.title}</strong>
                 <small>{product.categoryTitle}</small>
               </span>
 
-              <span className="suggestionPrice">${product.price}</span>
+              <span className="suggestionPrice">${Number(product.price || 0).toLocaleString("en-US")}</span>
             </button>
           ))}
         </div>
-      )}
+      ) : null}
     </div>
   );
 }
