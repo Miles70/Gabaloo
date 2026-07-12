@@ -16,6 +16,7 @@ import AdminSettings from "./pages/admin/AdminSettings";
 import AdminProtectedRoute from "./components/admin/AdminProtectedRoute";
 import CartToast from "./components/CartToast/CartToast";
 import "./styles/admin.css";
+import "./styles/admin-enhancements.css";
 
 function App() {
   return (
