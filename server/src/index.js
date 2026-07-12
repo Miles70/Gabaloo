@@ -20,28 +20,28 @@ async function startServer() {
 
   if (qualityCleanupResult.skipped) {
     console.warn(
-      `Catalog cleanup skipped: only ${qualityCleanupResult.qualityProductCount} verified Amazon products were found.`
+      `Catalog cleanup skipped: only ${qualityCleanupResult.qualityProductCount} verified Amazon products were found.`,
     );
   } else {
     if (qualityCleanupResult.restoredTitleCount > 0) {
       console.log(
-        `Amazon product titles restored: ${qualityCleanupResult.restoredTitleCount}.`
+        `Amazon product titles restored: ${qualityCleanupResult.restoredTitleCount}.`,
       );
     }
 
     if (qualityCleanupResult.deletedLowQualityCount > 0) {
       console.log(
-        `Low-quality catalog products removed: ${qualityCleanupResult.deletedLowQualityCount}.`
+        `Low-quality catalog products removed: ${qualityCleanupResult.deletedLowQualityCount}.`,
       );
     }
 
     console.log(
-      `Verified Amazon catalog ready: ${qualityCleanupResult.qualityProductCount} products.`
+      `Verified Amazon catalog ready: ${qualityCleanupResult.qualityProductCount} products.`,
     );
   }
 
   server = app.listen(port, () => {
-    console.log(`Kemalreis API running on http://localhost:${port}`);
+    console.log(`Gabaloo API running on http://localhost:${port}`);
   });
 }
 
