@@ -5,6 +5,7 @@ import { WagmiProvider } from "wagmi";
 
 import { LanguageProvider } from "./i18n/LanguageContext";
 import { CartProvider } from "./context/CartContext";
+import { AdminAuthProvider } from "./context/AdminAuthContext";
 import { wagmiAdapter } from "./config/wagmi";
 
 import "./index.css";
@@ -18,7 +19,9 @@ createRoot(document.getElementById("root")).render(
       <BrowserRouter>
         <LanguageProvider>
           <CartProvider>
-            <App />
+            <AdminAuthProvider>
+              <App />
+            </AdminAuthProvider>
           </CartProvider>
         </LanguageProvider>
       </BrowserRouter>
