@@ -76,8 +76,17 @@ export async function updateAdminOrder(token, orderNumber, updates) {
   });
 }
 
-export async function getAdminProducts(token) {
-  return adminRequest("/products", { token });
+export async function getAdminProducts(token, { page = 1, limit = 20, search = "" } = {}) {
+  const params = new URLSearchParams({
+    page: String(page),
+    limit: String(limit),
+  });
+
+  if (search) {
+    params.set("search", search);
+  }
+
+  return adminRequest(`/products?${params.toString()}`, { token });
 }
 
 export async function createAdminProduct(token, product) {
