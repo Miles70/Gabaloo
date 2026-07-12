@@ -11,9 +11,9 @@ import {
   Wrench,
 } from "lucide-react";
 import { Link } from "react-router-dom";
-import { useLanguage } from "../../i18n/LanguageContext";
-import { getCategoryGroupText } from "../../i18n/categoryGroups";
 import categories from "../../data/categories";
+import { getCategoryGroupText } from "../../i18n/categoryGroups";
+import { useLanguage } from "../../i18n/LanguageContext";
 import { getStoreProducts } from "../../services/productsApi";
 import "./FeaturedCategories.css";
 
@@ -31,7 +31,7 @@ const categoryIcons = {
 
 function FeaturedCategories() {
   const { t, language } = useLanguage();
-  const [categoryProducts, setCategoryProducts] = useState({});
+  const [categoryData, setCategoryData] = useState({});
 
   useEffect(() => {
     let isCancelled = false;
@@ -48,15 +48,21 @@ function FeaturedCategories() {
     ).then((results) => {
       if (isCancelled) return;
 
-      const nextCategoryProducts = {};
+      const nextCategoryData = {};
 
       results.forEach((result, index) => {
         const category = categories[index];
-        nextCategoryProducts[category.key] =
-          result.status === "fulfilled" ? (result.value.products || []).slice(0, 3) : [];
+
+        nextCategoryData[category.key] =
+          result.status === "fulfilled"
+            ? {
+                products: (result.value.products || []).slice(0, 3),
+                total: Number(result.value.pagination?.total || 0),
+              }
+            : { products: [], total: 0 };
       });
 
-      setCategoryProducts(nextCategoryProducts);
+      setCategoryData(nextCategoryData);
     });
 
     return () => {
@@ -70,53 +76,60 @@ function FeaturedCategories() {
         <p className="sectionTag">{t("featuredCategories.tag")}</p>
         <h2>{t("featuredCategories.title")}</h2>
 
-        <div className="categoryGrid">
+        <div className="featuredCategoryGrid">
           {categories.map((category) => {
             const CategoryIcon = categoryIcons[category.key] || Sparkles;
             const categoryTitle = getCategoryGroupText(language, category.key, "title");
-            const previewProducts = categoryProducts[category.key] || [];
+            const groupData = categoryData[category.key] || { products: [], total: 0 };
 
             return (
               <Link
-                className="categoryCard"
+                className="featuredCategoryCard"
                 data-category={category.key}
                 key={category.key}
                 to={`/products?group=${category.key}&page=1`}
                 aria-label={categoryTitle}
               >
-                <div className="categoryCardGlow" aria-hidden="true" />
+                <div className="featuredCategoryGlow" aria-hidden="true" />
 
-                <div className="categoryCardContent">
-                  <div className="categoryIcon">
-                    <CategoryIcon aria-hidden="true" />
+                <div className="featuredCategoryContent">
+                  <div className="featuredCategoryTopRow">
+                    <div className="featuredCategoryIcon">
+                      <CategoryIcon aria-hidden="true" />
+                    </div>
+
+                    <span className="featuredCategoryCount">
+                      {groupData.total > 0 ? `${groupData.total.toLocaleString("tr-TR")} ürün` : "—"}
+                    </span>
                   </div>
 
                   <h3>{categoryTitle}</h3>
                   <p>{getCategoryGroupText(language, category.key, "description")}</p>
                 </div>
 
-                <div className="categoryPreviewStack" aria-hidden="true">
+                <div className="featuredCategoryPreviewStack" aria-hidden="true">
                   {[0, 1, 2].map((index) => {
-                    const product = previewProducts[index];
+                    const product = groupData.products[index];
+                    const imageUrl = product?.imageUrl || product?.images?.[0] || "";
 
                     return (
                       <div
-                        className={`categoryPreviewCard categoryPreviewCard${index + 1}${
-                          product ? "" : " is-placeholder"
+                        className={`featuredCategoryPreviewCard featuredCategoryPreviewCard${index + 1}${
+                          imageUrl ? "" : " is-placeholder"
                         }`}
                         key={product?.key || `${category.key}-${index}`}
                       >
-                        {product?.imageUrl ? (
-                          <img src={product.imageUrl} alt="" loading="lazy" decoding="async" />
+                        {imageUrl ? (
+                          <img src={imageUrl} alt="" loading="lazy" decoding="async" />
                         ) : (
-                          <CategoryIcon />
+                          <CategoryIcon aria-hidden="true" />
                         )}
                       </div>
                     );
                   })}
                 </div>
 
-                <span className="categoryArrow" aria-hidden="true">
+                <span className="featuredCategoryArrow" aria-hidden="true">
                   <svg viewBox="0 0 24 24" fill="none">
                     <path
                       d="M5 12H19"
