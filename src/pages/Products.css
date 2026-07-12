@@ -28,12 +28,17 @@
   letter-spacing: -0.07em;
 }
 
-.productsHero p {
+.productsHero > p {
   max-width: 680px;
   margin: 0;
   color: var(--color-text-secondary);
   font-size: 18px;
   line-height: 1.7;
+}
+
+.productsPageSearch .searchBarWrap {
+  width: min(760px, 100%);
+  margin: 34px 0 0;
 }
 
 .productsListSection {
@@ -117,6 +122,11 @@
 
   .productsHero {
     padding: 42px 0 35px;
+  }
+
+  .productsPageSearch .searchBarWrap {
+    width: 100%;
+    margin-top: 26px;
   }
 
   .productsGrid {
