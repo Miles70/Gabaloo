@@ -2,11 +2,14 @@ import { useEffect, useMemo, useState } from "react";
 import {
   ArrowLeft,
   Check,
+  ChevronLeft,
+  ChevronRight,
   Minus,
   Plus,
   RotateCcw,
   ShieldCheck,
   ShoppingCart,
+  Star,
   Truck,
 } from "lucide-react";
 import { Link, useParams } from "react-router-dom";
@@ -36,6 +39,12 @@ const copy = {
     returnsText: "Simple return support for eligible orders.",
     related: "You may also like",
     relatedText: "More products from the same category.",
+    highlights: "Product highlights",
+    details: "Product details",
+    reviews: "reviews",
+    brand: "Brand",
+    previousImage: "Previous image",
+    nextImage: "Next image",
   },
   tr: {
     back: "Ürünlere dön",
@@ -56,6 +65,12 @@ const copy = {
     returnsText: "Uygun siparişlerde basit iade desteği.",
     related: "Bunları da beğenebilirsin",
     relatedText: "Aynı kategoriden diğer ürünler.",
+    highlights: "Ürün özellikleri",
+    details: "Ürün detayları",
+    reviews: "değerlendirme",
+    brand: "Marka",
+    previousImage: "Önceki görsel",
+    nextImage: "Sonraki görsel",
   },
   ru: {
     back: "Назад к товарам",
@@ -76,6 +91,12 @@ const copy = {
     returnsText: "Удобная поддержка возврата.",
     related: "Вам также может понравиться",
     relatedText: "Другие товары из той же категории.",
+    highlights: "Особенности товара",
+    details: "Характеристики",
+    reviews: "отзывов",
+    brand: "Бренд",
+    previousImage: "Предыдущее изображение",
+    nextImage: "Следующее изображение",
   },
   ar: {
     back: "العودة إلى المنتجات",
@@ -96,6 +117,12 @@ const copy = {
     returnsText: "دعم مبسط للإرجاع.",
     related: "قد يعجبك أيضاً",
     relatedText: "منتجات أخرى من الفئة نفسها.",
+    highlights: "مميزات المنتج",
+    details: "تفاصيل المنتج",
+    reviews: "تقييم",
+    brand: "العلامة التجارية",
+    previousImage: "الصورة السابقة",
+    nextImage: "الصورة التالية",
   },
   zh: {
     back: "返回产品列表",
@@ -116,17 +143,25 @@ const copy = {
     returnsText: "便捷退货支持。",
     related: "你可能还喜欢",
     relatedText: "同一分类中的更多产品。",
+    highlights: "产品亮点",
+    details: "产品详情",
+    reviews: "条评价",
+    brand: "品牌",
+    previousImage: "上一张图片",
+    nextImage: "下一张图片",
   },
 };
 
-function categoryLabel(categoryKey, t) {
-  if (!categoryKey) return "";
-  const translationKey = `categories.${categoryKey}.title`;
+function categoryLabel(product, t) {
+  if (product?.categoryLabel) return product.categoryLabel;
+  if (!product?.categoryKey) return "";
+
+  const translationKey = `categories.${product.categoryKey}.title`;
   const translated = t(translationKey);
 
   if (translated !== translationKey) return translated;
 
-  return categoryKey
+  return product.categoryKey
     .replace(/[-_]+/g, " ")
     .replace(/\b\w/g, (letter) => letter.toUpperCase());
 }
@@ -146,6 +181,7 @@ function ProductDetailsLive() {
   const [product, setProduct] = useState(null);
   const [relatedProducts, setRelatedProducts] = useState([]);
   const [quantity, setQuantity] = useState(1);
+  const [selectedImageIndex, setSelectedImageIndex] = useState(0);
   const [isAdded, setIsAdded] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
@@ -158,6 +194,7 @@ function ProductDetailsLive() {
     setProduct(null);
     setRelatedProducts([]);
     setQuantity(1);
+    setSelectedImageIndex(0);
 
     getStoreProduct(productKey)
       .then(async (data) => {
@@ -195,13 +232,36 @@ function ProductDetailsLive() {
     };
   }, [productKey]);
 
-  const imageSource = useMemo(() => {
-    if (!product) return "";
-    return product.imageUrl || product.images?.[0] || "";
+  const galleryImages = useMemo(() => {
+    if (!product) return [];
+
+    return [
+      ...(Array.isArray(product.images) ? product.images : []),
+      product.imageUrl,
+    ]
+      .filter(Boolean)
+      .filter((url, index, array) => array.indexOf(url) === index)
+      .slice(0, 6);
   }, [product]);
 
-  const category = product ? categoryLabel(product.categoryKey, t) : "";
+  const selectedImage = galleryImages[selectedImageIndex] || "";
+  const category = product ? categoryLabel(product, t) : "";
   const isInStock = Number(product?.stock || 0) > 0;
+  const features = Array.isArray(product?.features)
+    ? product.features.filter(Boolean).slice(0, 8)
+    : [];
+  const detailEntries =
+    product?.details && typeof product.details === "object" && !Array.isArray(product.details)
+      ? Object.entries(product.details).filter(([, value]) => value !== "").slice(0, 12)
+      : [];
+
+  function changeImage(direction) {
+    if (galleryImages.length < 2) return;
+
+    setSelectedImageIndex((current) => {
+      return (current + direction + galleryImages.length) % galleryImages.length;
+    });
+  }
 
   function handleAddToCart() {
     if (!product || !isInStock) return;
@@ -240,25 +300,81 @@ function ProductDetailsLive() {
       </Link>
 
       <section className="liveProductMain">
-        <div className="liveProductVisual">
-          <div className="liveProductImageFallback" aria-hidden="true">
-            {product.title?.charAt(0)?.toUpperCase() || "K"}
+        <div className="liveProductMedia">
+          <div className="liveProductVisual">
+            <div className="liveProductImageFallback" aria-hidden="true">
+              {product.title?.charAt(0)?.toUpperCase() || "K"}
+            </div>
+
+            {selectedImage ? (
+              <img
+                key={selectedImage}
+                src={selectedImage}
+                alt={product.title}
+                onError={(event) => {
+                  event.currentTarget.style.display = "none";
+                }}
+              />
+            ) : null}
+
+            {galleryImages.length > 1 ? (
+              <>
+                <button
+                  type="button"
+                  className="liveProductGalleryArrow is-previous"
+                  onClick={() => changeImage(-1)}
+                  aria-label={labels.previousImage}
+                >
+                  <ChevronLeft size={24} />
+                </button>
+                <button
+                  type="button"
+                  className="liveProductGalleryArrow is-next"
+                  onClick={() => changeImage(1)}
+                  aria-label={labels.nextImage}
+                >
+                  <ChevronRight size={24} />
+                </button>
+                <span className="liveProductGalleryCounter">
+                  {selectedImageIndex + 1} / {galleryImages.length}
+                </span>
+              </>
+            ) : null}
+
+            {product.badge ? (
+              <span className={`liveProductBadge ${product.badge}`}>{product.badge}</span>
+            ) : null}
           </div>
-          {imageSource ? (
-            <img
-              src={imageSource}
-              alt={product.title}
-              onError={(event) => {
-                event.currentTarget.style.display = "none";
-              }}
-            />
+
+          {galleryImages.length > 1 ? (
+            <div className="liveProductThumbnails">
+              {galleryImages.map((imageUrl, index) => (
+                <button
+                  type="button"
+                  key={imageUrl}
+                  className={index === selectedImageIndex ? "is-active" : ""}
+                  onClick={() => setSelectedImageIndex(index)}
+                  aria-label={`${product.title} ${index + 1}`}
+                >
+                  <img src={imageUrl} alt="" loading="lazy" />
+                </button>
+              ))}
+            </div>
           ) : null}
-          {product.badge ? <span className={`liveProductBadge ${product.badge}`}>{product.badge}</span> : null}
         </div>
 
         <div className="liveProductInfo">
           <p className="liveProductCategory">{category}</p>
           <h1>{product.title}</h1>
+
+          <div className="liveProductRating">
+            <Star size={17} fill="currentColor" />
+            <strong>{Number(product.rating || 0).toFixed(1)}</strong>
+            <span>
+              {Number(product.reviewCount || 0).toLocaleString("en-US")} {labels.reviews}
+            </span>
+            {product.brand ? <small>{labels.brand}: {product.brand}</small> : null}
+          </div>
 
           <div className="liveProductStockRow">
             <span className={isInStock ? "is-in-stock" : "is-out-of-stock"}>
@@ -278,6 +394,20 @@ function ProductDetailsLive() {
             {product.description ||
               "Premium marketplace selection with secure checkout, tracked delivery and customer support."}
           </p>
+
+          {features.length ? (
+            <section className="liveProductHighlights">
+              <h2>{labels.highlights}</h2>
+              <ul>
+                {features.map((feature) => (
+                  <li key={feature}>
+                    <Check size={16} />
+                    <span>{feature}</span>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          ) : null}
 
           <div className="liveProductBuyRow">
             <div className="liveProductQuantity">
@@ -322,6 +452,23 @@ function ProductDetailsLive() {
           </div>
         </div>
       </section>
+
+      {detailEntries.length ? (
+        <section className="liveProductSpecs">
+          <div className="liveProductSpecsHeader">
+            <span>{category}</span>
+            <h2>{labels.details}</h2>
+          </div>
+          <dl>
+            {detailEntries.map(([label, value]) => (
+              <div key={label}>
+                <dt>{label}</dt>
+                <dd>{String(value)}</dd>
+              </div>
+            ))}
+          </dl>
+        </section>
+      ) : null}
 
       {relatedProducts.length ? (
         <section className="liveProductRelated">
