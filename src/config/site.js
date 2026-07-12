@@ -1,7 +1,7 @@
 const siteConfig = {
-  brandName: "Gabaloo",
-  shortName: "G",
-  description: "Global commerce powered by Web3.",
+  brandName: "KemalReis",
+  shortName: "KR",
+  description: "Premium online shopping experience.",
 };
 
 export default siteConfig;
