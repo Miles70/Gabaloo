@@ -9,6 +9,7 @@ import {
   Zap,
 } from "lucide-react";
 
+import categories from "../../data/categories";
 import { useLanguage } from "../../i18n/LanguageContext";
 import { getStoreProducts } from "../../services/productsApi";
 
@@ -53,7 +54,7 @@ function Hero() {
       label: t("productsPage.items"),
     },
     {
-      value: "4",
+      value: String(categories.length),
       label: t("nav.categories"),
     },
     {
@@ -98,7 +99,6 @@ function Hero() {
 
         <h1>
           <span className="heroTitleLine">{t("hero.titleFirst")}</span>
-
           <span className="heroTitleLine heroGradientText">
             {t("hero.titleSecond")}
           </span>
@@ -125,9 +125,7 @@ function Hero() {
           </span>
 
           <strong>4.7</strong>
-
           <span className="heroReviewDivider">·</span>
-
           <span>{t("popularProducts.title")}</span>
         </div>
 
