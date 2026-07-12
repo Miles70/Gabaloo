@@ -39,8 +39,7 @@ function AdminSettings() {
             <h2>Railway ortam değişkenleri</h2>
             <p className="admin-code-line">ADMIN_EMAIL</p>
             <p className="admin-code-line">ADMIN_PASSWORD</p>
-            <p className="admin-code-line">ADMIN_TOKEN_SECRET</p>
-            <span>Token secret en az 32 karakter olmalı. Bu değerler repoya yazılmaz, Railway Variables alanında tutulur.</span>
+            <span>Başka bir admin anahtarı gerekmez. Oturum anahtarı her girişte sunucu tarafından otomatik oluşturulur.</span>
           </div>
         </section>
       </div>
