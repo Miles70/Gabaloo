@@ -1,6 +1,7 @@
-import { createHmac, timingSafeEqual } from "node:crypto";
+import { randomBytes, timingSafeEqual } from "node:crypto";
 
-const TOKEN_TTL_SECONDS = 12 * 60 * 60;
+const TOKEN_TTL_MS = 12 * 60 * 60 * 1000;
+const activeSessions = new Map();
 
 function createHttpError(message, statusCode) {
   const error = new Error(message);
@@ -11,16 +12,15 @@ function createHttpError(message, statusCode) {
 function getAdminConfig() {
   const email = String(process.env.ADMIN_EMAIL || "").trim().toLowerCase();
   const password = String(process.env.ADMIN_PASSWORD || "");
-  const secret = String(process.env.ADMIN_TOKEN_SECRET || "");
 
-  if (!email || !password || secret.length < 32) {
+  if (!email || !password) {
     throw createHttpError(
-      "Admin authentication is not configured. Set ADMIN_EMAIL, ADMIN_PASSWORD and an ADMIN_TOKEN_SECRET of at least 32 characters.",
+      "Admin authentication is not configured. Set ADMIN_EMAIL and ADMIN_PASSWORD.",
       503
     );
   }
 
-  return { email, password, secret };
+  return { email, password };
 }
 
 function safeEqual(leftValue, rightValue) {
@@ -34,8 +34,14 @@ function safeEqual(leftValue, rightValue) {
   return timingSafeEqual(left, right);
 }
 
-function signPayload(encodedPayload, secret) {
-  return createHmac("sha256", secret).update(encodedPayload).digest("base64url");
+function clearExpiredSessions() {
+  const now = Date.now();
+
+  for (const [token, session] of activeSessions.entries()) {
+    if (session.expiresAt <= now) {
+      activeSessions.delete(token);
+    }
+  }
 }
 
 export function verifyAdminCredentials(email, password) {
@@ -47,51 +53,34 @@ export function verifyAdminCredentials(email, password) {
 
 export function createAdminToken() {
   const config = getAdminConfig();
-  const issuedAt = Math.floor(Date.now() / 1000);
-  const payload = {
-    sub: "kemalreis-admin",
-    email: config.email,
-    iat: issuedAt,
-    exp: issuedAt + TOKEN_TTL_SECONDS,
-  };
-  const encodedPayload = Buffer.from(JSON.stringify(payload)).toString("base64url");
-  const signature = signPayload(encodedPayload, config.secret);
+  const issuedAt = Date.now();
+  const token = randomBytes(48).toString("base64url");
 
-  return `${encodedPayload}.${signature}`;
+  clearExpiredSessions();
+  activeSessions.set(token, {
+    email: config.email,
+    issuedAt,
+    expiresAt: issuedAt + TOKEN_TTL_MS,
+  });
+
+  return token;
 }
 
 export function verifyAdminToken(token) {
-  const config = getAdminConfig();
-  const [encodedPayload, signature, extraPart] = String(token || "").split(".");
+  getAdminConfig();
+  clearExpiredSessions();
 
-  if (!encodedPayload || !signature || extraPart) {
-    throw createHttpError("Invalid admin session.", 401);
+  const normalizedToken = String(token || "");
+  const session = activeSessions.get(normalizedToken);
+
+  if (!session) {
+    throw createHttpError("Invalid or expired admin session.", 401);
   }
 
-  const expectedSignature = signPayload(encodedPayload, config.secret);
-
-  if (!safeEqual(signature, expectedSignature)) {
-    throw createHttpError("Invalid admin session.", 401);
-  }
-
-  let payload;
-
-  try {
-    payload = JSON.parse(Buffer.from(encodedPayload, "base64url").toString("utf8"));
-  } catch {
-    throw createHttpError("Invalid admin session.", 401);
-  }
-
-  const now = Math.floor(Date.now() / 1000);
-
-  if (
-    payload.sub !== "kemalreis-admin" ||
-    payload.email !== config.email ||
-    !Number.isFinite(payload.exp) ||
-    payload.exp <= now
-  ) {
-    throw createHttpError("Admin session expired.", 401);
-  }
-
-  return payload;
+  return {
+    sub: "kemalreis-admin",
+    email: session.email,
+    iat: Math.floor(session.issuedAt / 1000),
+    exp: Math.floor(session.expiresAt / 1000),
+  };
 }
