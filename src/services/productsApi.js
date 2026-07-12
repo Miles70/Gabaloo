@@ -25,6 +25,7 @@ export async function getStoreProducts({
   limit = 24,
   search = "",
   category = "",
+  group = "",
   sort = "popular",
 } = {}) {
   const query = new URLSearchParams({
@@ -35,6 +36,7 @@ export async function getStoreProducts({
 
   if (search) query.set("search", search);
   if (category) query.set("category", category);
+  if (group) query.set("group", group);
 
   const data = await storeRequest(`/products?${query.toString()}`);
 
