@@ -15,12 +15,16 @@ import {
 import { Link } from "react-router-dom";
 import ProductCard from "../components/ProductCard/ProductCard";
 import categories from "../data/categories";
+import { getCategoryGroupText } from "../i18n/categoryGroups";
 import { useLanguage } from "../i18n/LanguageContext";
 import { getStoreProducts } from "../services/productsApi";
 import "./Categories.css";
 
 const pageTranslations = {
   en: {
+    tag: "Categories",
+    title: "Shop by category.",
+    text: "Browse the marketplace through nine clear collections and reach the right products faster.",
     collections: "Collections",
     products: "Products",
     globalStore: "Global Store",
@@ -31,6 +35,9 @@ const pageTranslations = {
     loading: "Loading categories...",
   },
   tr: {
+    tag: "Kategoriler",
+    title: "Kategoriye göre alışveriş yap.",
+    text: "Pazaryerini dokuz net koleksiyon üzerinden gez ve aradığın ürünlere daha hızlı ulaş.",
     collections: "Koleksiyon",
     products: "Ürün",
     globalStore: "Global Mağaza",
@@ -41,6 +48,9 @@ const pageTranslations = {
     loading: "Kategoriler yükleniyor...",
   },
   ru: {
+    tag: "Категории",
+    title: "Покупайте по категориям.",
+    text: "Просматривайте маркетплейс через девять понятных коллекций и быстрее находите нужные товары.",
     collections: "Коллекции",
     products: "Товары",
     globalStore: "Глобальный магазин",
@@ -51,6 +61,9 @@ const pageTranslations = {
     loading: "Категории загружаются...",
   },
   ar: {
+    tag: "الفئات",
+    title: "تسوق حسب الفئة.",
+    text: "تصفح السوق عبر تسع مجموعات واضحة واعثر على المنتجات المناسبة بسرعة أكبر.",
     collections: "المجموعات",
     products: "المنتجات",
     globalStore: "متجر عالمي",
@@ -61,6 +74,9 @@ const pageTranslations = {
     loading: "جارٍ تحميل الفئات...",
   },
   zh: {
+    tag: "分类",
+    title: "按分类购物。",
+    text: "通过九个清晰的商品集合浏览市场，更快找到合适的产品。",
     collections: "系列",
     products: "商品",
     globalStore: "全球商店",
@@ -137,9 +153,9 @@ function Categories() {
   return (
     <main className="categoriesPage">
       <section className="categoriesHero">
-        <span>{t("categoriesPage.tag")}</span>
-        <h1>{t("categoriesPage.title")}</h1>
-        <p>{t("categoriesPage.text")}</p>
+        <span>{copy.tag}</span>
+        <h1>{copy.title}</h1>
+        <p>{copy.text}</p>
       </section>
 
       <section className="categoriesOverview">
@@ -181,7 +197,7 @@ function Categories() {
                 <span>
                   <CategoryIcon aria-hidden="true" />
                 </span>
-                {t(`categoryGroups.${category.key}.title`)}
+                {getCategoryGroupText(language, category.key, "title")}
               </a>
             );
           })}
@@ -193,8 +209,8 @@ function Categories() {
           const CategoryIcon = categoryIcons[category.key] || Sparkles;
           const groupData = categoryData[category.key] || { products: [], total: 0 };
           const previewProducts = groupData.products.slice(0, 3);
-          const categoryTitle = t(`categoryGroups.${category.key}.title`);
-          const categoryDescription = t(`categoryGroups.${category.key}.description`);
+          const categoryTitle = getCategoryGroupText(language, category.key, "title");
+          const categoryDescription = getCategoryGroupText(language, category.key, "description");
           const productsPath = `/products?group=${category.key}&page=1`;
 
           return (
