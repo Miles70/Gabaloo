@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { Package, Plus, RefreshCw, Save, Search } from "lucide-react";
+import { useEffect, useState } from "react";
+import { ChevronLeft, ChevronRight, Package, Plus, RefreshCw, Save, Search, X } from "lucide-react";
 import ProductCreateModal from "../../components/admin/ProductCreateModal";
 import { useAdminAuth } from "../../context/AdminAuthContext";
 import {
@@ -8,46 +8,117 @@ import {
   updateAdminProduct,
 } from "../../services/adminApi";
 
+const PRODUCTS_PER_PAGE = 20;
+
+const initialPagination = {
+  page: 1,
+  limit: PRODUCTS_PER_PAGE,
+  total: 0,
+  totalPages: 1,
+  catalogTotal: 0,
+  activeTotal: 0,
+  hasPreviousPage: false,
+  hasNextPage: false,
+};
+
+function getPaginationItems(currentPage, totalPages) {
+  if (totalPages <= 9) {
+    return Array.from({ length: totalPages }, (_, index) => index + 1);
+  }
+
+  const candidates = [
+    1,
+    2,
+    currentPage - 2,
+    currentPage - 1,
+    currentPage,
+    currentPage + 1,
+    currentPage + 2,
+    totalPages - 1,
+    totalPages,
+  ]
+    .filter((page) => page >= 1 && page <= totalPages)
+    .filter((page, index, pages) => pages.indexOf(page) === index)
+    .sort((left, right) => left - right);
+
+  const items = [];
+
+  candidates.forEach((page, index) => {
+    const previousPage = candidates[index - 1];
+
+    if (previousPage && page - previousPage > 1) {
+      items.push(`ellipsis-${previousPage}-${page}`);
+    }
+
+    items.push(page);
+  });
+
+  return items;
+}
+
 function AdminProducts() {
   const { token } = useAdminAuth();
   const [products, setProducts] = useState([]);
+  const [pagination, setPagination] = useState(initialPagination);
+  const [page, setPage] = useState(1);
+  const [searchInput, setSearchInput] = useState("");
+  const [appliedSearch, setAppliedSearch] = useState("");
+  const [refreshKey, setRefreshKey] = useState(0);
   const [dirtyKeys, setDirtyKeys] = useState(() => new Set());
   const [savingKey, setSavingKey] = useState("");
-  const [search, setSearch] = useState("");
   const [isLoading, setIsLoading] = useState(true);
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
 
-  const loadProducts = useCallback(async () => {
-    setIsLoading(true);
-    setError("");
-
-    try {
-      const data = await getAdminProducts(token);
-      setProducts(data.products || []);
-      setDirtyKeys(new Set());
-    } catch (requestError) {
-      setError(requestError.message);
-    } finally {
-      setIsLoading(false);
-    }
-  }, [token]);
-
   useEffect(() => {
+    let isCancelled = false;
+
+    async function loadProducts() {
+      setIsLoading(true);
+      setError("");
+
+      try {
+        const data = await getAdminProducts(token, {
+          page,
+          limit: PRODUCTS_PER_PAGE,
+          search: appliedSearch,
+        });
+
+        if (isCancelled) return;
+
+        setProducts(data.products || []);
+        setPagination(data.pagination || initialPagination);
+        setDirtyKeys(new Set());
+
+        if (data.pagination?.page && data.pagination.page !== page) {
+          setPage(data.pagination.page);
+        }
+      } catch (requestError) {
+        if (!isCancelled) {
+          setError(requestError.message);
+        }
+      } finally {
+        if (!isCancelled) {
+          setIsLoading(false);
+        }
+      }
+    }
+
     loadProducts();
-  }, [loadProducts]);
 
-  const visibleProducts = useMemo(() => {
-    const term = search.trim().toLowerCase();
-    if (!term) return products;
+    return () => {
+      isCancelled = true;
+    };
+  }, [token, page, appliedSearch, refreshKey]);
 
-    return products.filter((product) =>
-      [product.key, product.title, product.categoryKey]
-        .filter(Boolean)
-        .some((value) => String(value).toLowerCase().includes(term))
+  function confirmDiscardChanges() {
+    if (dirtyKeys.size === 0) return true;
+
+    return window.confirm(
+      "Kaydedilmemiş ürün değişiklikleri var. Sayfadan ayrılırsan bu değişiklikler silinir. Devam edilsin mi?"
     );
-  }, [products, search]);
+  }
 
   function updateLocalProduct(productKey, field, value) {
     setProducts((current) =>
@@ -61,12 +132,48 @@ function AdminProducts() {
     setSuccess("");
   }
 
+  function changePage(nextPage) {
+    if (nextPage === page || nextPage < 1 || nextPage > pagination.totalPages) return;
+    if (!confirmDiscardChanges()) return;
+
+    setPage(nextPage);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+
+  function handleSearchSubmit(event) {
+    event.preventDefault();
+    if (!confirmDiscardChanges()) return;
+
+    const nextSearch = searchInput.trim();
+    setAppliedSearch(nextSearch);
+    setPage(1);
+    setRefreshKey((current) => current + 1);
+  }
+
+  function clearSearch() {
+    if (!confirmDiscardChanges()) return;
+
+    setSearchInput("");
+    setAppliedSearch("");
+    setPage(1);
+    setRefreshKey((current) => current + 1);
+  }
+
+  function refreshProducts() {
+    if (!confirmDiscardChanges()) return;
+    setRefreshKey((current) => current + 1);
+  }
+
   async function createProduct(payload) {
     setError("");
     setSuccess("");
+
     const data = await createAdminProduct(token, payload);
-    setProducts((current) => [...current, data.product]);
     setSuccess(`${data.product.title} kataloğa eklendi.`);
+    setSearchInput("");
+    setAppliedSearch("");
+    setPage(1);
+    setRefreshKey((current) => current + 1);
   }
 
   async function saveProduct(product) {
@@ -92,6 +199,13 @@ function AdminProducts() {
         next.delete(product.key);
         return next;
       });
+      setPagination((current) => ({
+        ...current,
+        activeTotal:
+          Boolean(data.product.isActive) === Boolean(product.isActive)
+            ? current.activeTotal
+            : current.activeTotal + (data.product.isActive ? 1 : -1),
+      }));
       setSuccess(`${product.title} güncellendi.`);
     } catch (requestError) {
       setError(requestError.message);
@@ -99,6 +213,10 @@ function AdminProducts() {
       setSavingKey("");
     }
   }
+
+  const firstVisibleItem = pagination.total === 0 ? 0 : (pagination.page - 1) * pagination.limit + 1;
+  const lastVisibleItem = Math.min(pagination.page * pagination.limit, pagination.total);
+  const paginationItems = getPaginationItems(pagination.page, pagination.totalPages);
 
   return (
     <div className="admin-page">
@@ -112,26 +230,44 @@ function AdminProducts() {
           <button className="admin-primary-button" type="button" onClick={() => setIsCreateOpen(true)}>
             <Plus size={18} /> Yeni ürün
           </button>
-          <button className="admin-secondary-button" type="button" onClick={loadProducts} disabled={isLoading}>
+          <button className="admin-secondary-button" type="button" onClick={refreshProducts} disabled={isLoading}>
             <RefreshCw size={18} className={isLoading ? "is-spinning" : ""} /> Yenile
           </button>
         </div>
       </div>
 
-      <section className="admin-toolbar">
-        <label className="admin-search-box">
-          <Search size={18} />
-          <input
-            value={search}
-            onChange={(event) => setSearch(event.target.value)}
-            placeholder="Ürün, anahtar veya kategori ara..."
-          />
-        </label>
+      <section className="admin-toolbar admin-products-toolbar">
+        <form className="admin-product-search-form" onSubmit={handleSearchSubmit}>
+          <label className="admin-search-box">
+            <Search size={18} />
+            <input
+              value={searchInput}
+              onChange={(event) => setSearchInput(event.target.value)}
+              placeholder="Tüm katalogda ürün, anahtar veya kategori ara..."
+            />
+          </label>
+          <button className="admin-secondary-button admin-search-submit" type="submit" disabled={isLoading}>
+            Ara
+          </button>
+          {appliedSearch ? (
+            <button className="admin-search-clear" type="button" onClick={clearSearch} aria-label="Aramayı temizle">
+              <X size={17} />
+            </button>
+          ) : null}
+        </form>
+
         <div className="admin-toolbar-summary">
-          <span>{products.filter((product) => product.isActive).length} aktif</span>
+          <span>{pagination.activeTotal} aktif</span>
+          <span>{pagination.catalogTotal} toplam</span>
           <span>{dirtyKeys.size} kaydedilmemiş</span>
         </div>
       </section>
+
+      {appliedSearch ? (
+        <div className="admin-search-result-note">
+          “{appliedSearch}” için {pagination.total} ürün bulundu.
+        </div>
+      ) : null}
 
       {error ? <div className="admin-alert admin-alert-error">{error}</div> : null}
       {success ? <div className="admin-alert admin-alert-success">{success}</div> : null}
@@ -152,8 +288,8 @@ function AdminProducts() {
               </tr>
             </thead>
             <tbody>
-              {!isLoading && visibleProducts.length ? (
-                visibleProducts.map((product) => (
+              {!isLoading && products.length ? (
+                products.map((product) => (
                   <tr key={product.key} className={dirtyKeys.has(product.key) ? "is-dirty" : ""}>
                     <td>
                       <div className="admin-product-cell">
@@ -249,6 +385,50 @@ function AdminProducts() {
             </tbody>
           </table>
         </div>
+
+        <footer className="admin-pagination">
+          <div className="admin-pagination-info">
+            <strong>{firstVisibleItem}–{lastVisibleItem}</strong>
+            <span>/ {pagination.total} ürün</span>
+          </div>
+
+          <nav className="admin-pagination-nav" aria-label="Ürün sayfaları">
+            <button
+              type="button"
+              onClick={() => changePage(page - 1)}
+              disabled={!pagination.hasPreviousPage || isLoading}
+              aria-label="Önceki sayfa"
+            >
+              <ChevronLeft size={17} />
+            </button>
+
+            {paginationItems.map((item) =>
+              typeof item === "number" ? (
+                <button
+                  key={item}
+                  type="button"
+                  className={item === pagination.page ? "is-active" : ""}
+                  onClick={() => changePage(item)}
+                  disabled={isLoading}
+                  aria-current={item === pagination.page ? "page" : undefined}
+                >
+                  {item}
+                </button>
+              ) : (
+                <span key={item} className="admin-pagination-ellipsis">…</span>
+              )
+            )}
+
+            <button
+              type="button"
+              onClick={() => changePage(page + 1)}
+              disabled={!pagination.hasNextPage || isLoading}
+              aria-label="Sonraki sayfa"
+            >
+              <ChevronRight size={17} />
+            </button>
+          </nav>
+        </footer>
       </section>
 
       {isCreateOpen ? (
