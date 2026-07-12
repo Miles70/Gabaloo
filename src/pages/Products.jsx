@@ -3,6 +3,7 @@ import { ChevronLeft, ChevronRight, PackageSearch } from "lucide-react";
 import { useSearchParams } from "react-router-dom";
 import ProductCard from "../components/ProductCard/ProductCard";
 import SearchBar from "../components/SearchBar/SearchBar";
+import categories from "../data/categories";
 import { useLanguage } from "../i18n/LanguageContext";
 import { getStoreProducts } from "../services/productsApi";
 import "./Products.css";
@@ -38,6 +39,11 @@ function categoryLabel(categoryKey, t) {
     .replace(/\b\w/g, (letter) => letter.toUpperCase());
 }
 
+function groupLabel(groupKey, t) {
+  if (!categories.some((category) => category.key === groupKey)) return "";
+  return t(`categoryGroups.${groupKey}.title`);
+}
+
 function Products() {
   const { t } = useLanguage();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -55,6 +61,7 @@ function Products() {
 
   const searchQuery = searchParams.get("search")?.trim() || "";
   const categoryQuery = searchParams.get("category")?.trim().toLowerCase() || "";
+  const groupQuery = searchParams.get("group")?.trim() || "";
   const requestedPage = Math.max(Number.parseInt(searchParams.get("page"), 10) || 1, 1);
 
   useEffect(() => {
@@ -68,6 +75,7 @@ function Products() {
       limit: PAGE_SIZE,
       search: searchQuery,
       category: categoryQuery,
+      group: groupQuery,
     })
       .then((data) => {
         if (isCancelled) return;
@@ -94,14 +102,15 @@ function Products() {
     return () => {
       isCancelled = true;
     };
-  }, [categoryQuery, requestedPage, searchQuery, searchParams, setSearchParams]);
+  }, [categoryQuery, groupQuery, requestedPage, searchQuery, searchParams, setSearchParams]);
 
   const pageItems = useMemo(
     () => getPageItems(pagination.page || 1, pagination.totalPages || 1),
     [pagination.page, pagination.totalPages],
   );
 
-  const selectedCategoryTitle = categoryLabel(categoryQuery, t);
+  const selectedCategoryTitle =
+    groupLabel(groupQuery, t) || categoryLabel(categoryQuery, t);
 
   function changePage(nextPage) {
     if (nextPage < 1 || nextPage > pagination.totalPages || nextPage === pagination.page) return;
