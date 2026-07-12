@@ -1,7 +1,9 @@
+import { Trash2 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useLanguage } from "../i18n/LanguageContext";
 import { useCart } from "../context/CartContext";
 import "./Cart.css";
+import "./CartRemoveButton.css";
 
 function Cart() {
   const { t } = useLanguage();
@@ -75,9 +77,12 @@ function Cart() {
 
                   <button
                     type="button"
+                    className="cartRemoveButton"
                     onClick={() => removeFromCart(item.key)}
+                    aria-label={t("cartPage.remove")}
+                    title={t("cartPage.remove")}
                   >
-                    {t("cartPage.remove")}
+                    <Trash2 size={18} strokeWidth={2.2} aria-hidden="true" />
                   </button>
                 </div>
               </article>
