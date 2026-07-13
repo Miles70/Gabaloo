@@ -14,6 +14,7 @@ const orderStatuses = ["pending", "processing", "shipped", "completed", "cancell
 const paymentStatuses = ["unpaid", "pending", "paid", "failed", "refunded"];
 const paymentMethods = ["not_selected", "card", "crypto"];
 const productBadges = ["sale", "new", "stock", null];
+const MAX_BULK_ORDER_DELETE = 200;
 
 const loginLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
@@ -31,6 +32,10 @@ function createHttpError(message, statusCode) {
 
 function escapeRegex(value) {
   return String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function normalizeOrderNumber(value) {
+  return String(value || "").trim().toUpperCase();
 }
 
 adminRouter.post("/login", loginLimiter, (request, response, next) => {
@@ -138,6 +143,63 @@ adminRouter.get("/orders", async (request, response, next) => {
     response.json({ orders });
   } catch (error) {
     next(error);
+  }
+});
+
+adminRouter.delete("/orders", async (request, response, next) => {
+  try {
+    const orderNumbers = [
+      ...new Set(
+        (Array.isArray(request.body?.orderNumbers) ? request.body.orderNumbers : [])
+          .map(normalizeOrderNumber)
+          .filter(Boolean),
+      ),
+    ];
+
+    if (orderNumbers.length === 0) {
+      throw createHttpError("At least one order number is required.", 400);
+    }
+
+    if (orderNumbers.length > MAX_BULK_ORDER_DELETE) {
+      throw createHttpError(
+        `A maximum of ${MAX_BULK_ORDER_DELETE} orders can be deleted at once.`,
+        400,
+      );
+    }
+
+    const result = await Order.deleteMany({
+      orderNumber: { $in: orderNumbers },
+    });
+
+    return response.json({
+      deletedCount: result.deletedCount || 0,
+      orderNumbers,
+    });
+  } catch (error) {
+    return next(error);
+  }
+});
+
+adminRouter.delete("/orders/:orderNumber", async (request, response, next) => {
+  try {
+    const orderNumber = normalizeOrderNumber(request.params.orderNumber);
+
+    if (!orderNumber) {
+      throw createHttpError("Order number is required.", 400);
+    }
+
+    const order = await Order.findOneAndDelete({ orderNumber }).lean();
+
+    if (!order) {
+      return response.status(404).json({ message: "Order not found." });
+    }
+
+    return response.json({
+      deleted: true,
+      orderNumber: order.orderNumber,
+    });
+  } catch (error) {
+    return next(error);
   }
 });
 
