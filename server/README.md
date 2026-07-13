@@ -11,6 +11,8 @@
 
 The frontend sends local `/api` requests through the Vite proxy to `http://localhost:5000`.
 
+> Important: the current product catalog remains in the existing `kemalreis` MongoDB database. Do not rename that database until a separate catalog migration is performed.
+
 ## Store endpoints
 
 - `GET /api/health`
