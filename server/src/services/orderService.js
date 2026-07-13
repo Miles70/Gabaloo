@@ -1,4 +1,5 @@
 import crypto from "node:crypto";
+import { getPublicCryptoPaymentConfig } from "../config/cryptoPayment.js";
 import { Order } from "../models/Order.js";
 import { Product } from "../models/Product.js";
 
@@ -104,10 +105,30 @@ function createOrderNumber() {
   return `KMR-${datePart}-${randomPart}`;
 }
 
-function getPaymentProvider(paymentMethod) {
-  if (paymentMethod === "crypto") return "onchain";
-  if (paymentMethod === "card") return "stripe";
-  return "none";
+function getPaymentData(paymentMethod, total) {
+  if (paymentMethod === "crypto") {
+    const config = getPublicCryptoPaymentConfig();
+
+    return {
+      ...config,
+      expectedAmount: Number(total).toFixed(2),
+      currency: config.token,
+    };
+  }
+
+  if (paymentMethod === "card") {
+    return {
+      configured: false,
+      provider: "stripe",
+      expectedAmount: Number(total).toFixed(2),
+      currency: "USD",
+    };
+  }
+
+  return {
+    configured: false,
+    provider: "none",
+  };
 }
 
 export function serializeOrder(orderDocument) {
@@ -121,16 +142,22 @@ export function serializeOrder(orderDocument) {
     paymentStatus: order.paymentStatus,
     paymentMethod: order.paymentMethod,
     payment: {
+      configured: Boolean(payment.configured),
       provider: payment.provider || "none",
       network: payment.network || "",
       chainId: payment.chainId || null,
       token: payment.token || "",
       tokenAddress: payment.tokenAddress || "",
+      tokenDecimals:
+        Number.isInteger(payment.tokenDecimals) ? payment.tokenDecimals : null,
       payerAddress: payment.payerAddress || "",
       recipientAddress: payment.recipientAddress || "",
       transactionHash: payment.transactionHash || "",
+      expectedAmount: payment.expectedAmount || "",
       amount: payment.amount || "",
       currency: payment.currency || "",
+      blockNumber: payment.blockNumber || null,
+      confirmations: Number(payment.confirmations || 0),
       confirmedAt: payment.confirmedAt || null,
       failedAt: payment.failedAt || null,
       failureReason: payment.failureReason || "",
@@ -209,9 +236,7 @@ export async function createOrder(payload = {}) {
     status: paymentMethod === "not_selected" ? "pending" : "awaiting_payment",
     paymentStatus: "unpaid",
     paymentMethod,
-    payment: {
-      provider: getPaymentProvider(paymentMethod),
-    },
+    payment: getPaymentData(paymentMethod, total),
     customer,
     items: orderItems,
     subtotal,
