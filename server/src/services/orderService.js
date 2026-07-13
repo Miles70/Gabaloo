@@ -4,6 +4,7 @@ import { Product } from "../models/Product.js";
 
 const MAX_ORDER_ITEMS = 50;
 const MAX_ITEM_QUANTITY = 10;
+const PAYMENT_METHODS = new Set(["not_selected", "card", "crypto"]);
 
 function cleanText(value, maxLength) {
   return String(value || "").trim().slice(0, maxLength);
@@ -35,6 +36,18 @@ function normalizeCustomer(customer = {}) {
   }
 
   return normalized;
+}
+
+function normalizePaymentMethod(value) {
+  const paymentMethod = cleanText(value || "not_selected", 30).toLowerCase();
+
+  if (!PAYMENT_METHODS.has(paymentMethod)) {
+    const error = new Error("Unsupported payment method.");
+    error.statusCode = 400;
+    throw error;
+  }
+
+  return paymentMethod;
 }
 
 function normalizeRequestedItems(items) {
@@ -91,8 +104,15 @@ function createOrderNumber() {
   return `KMR-${datePart}-${randomPart}`;
 }
 
+function getPaymentProvider(paymentMethod) {
+  if (paymentMethod === "crypto") return "onchain";
+  if (paymentMethod === "card") return "stripe";
+  return "none";
+}
+
 export function serializeOrder(orderDocument) {
   const order = orderDocument.toObject ? orderDocument.toObject() : orderDocument;
+  const payment = order.payment || {};
 
   return {
     id: order.orderNumber,
@@ -100,7 +120,23 @@ export function serializeOrder(orderDocument) {
     status: order.status,
     paymentStatus: order.paymentStatus,
     paymentMethod: order.paymentMethod,
+    payment: {
+      provider: payment.provider || "none",
+      network: payment.network || "",
+      chainId: payment.chainId || null,
+      token: payment.token || "",
+      tokenAddress: payment.tokenAddress || "",
+      payerAddress: payment.payerAddress || "",
+      recipientAddress: payment.recipientAddress || "",
+      transactionHash: payment.transactionHash || "",
+      amount: payment.amount || "",
+      currency: payment.currency || "",
+      confirmedAt: payment.confirmedAt || null,
+      failedAt: payment.failedAt || null,
+      failureReason: payment.failureReason || "",
+    },
     createdAt: order.createdAt,
+    updatedAt: order.updatedAt,
     customer: order.customer,
     items: order.items.map((item) => ({
       key: item.productKey,
@@ -119,8 +155,9 @@ export function serializeOrder(orderDocument) {
   };
 }
 
-export async function createOrder(payload) {
+export async function createOrder(payload = {}) {
   const customer = normalizeCustomer(payload.customer);
+  const paymentMethod = normalizePaymentMethod(payload.paymentMethod);
   const requestedItems = normalizeRequestedItems(payload.items);
   const productKeys = requestedItems.map((item) => item.productKey);
 
@@ -169,6 +206,12 @@ export async function createOrder(payload) {
 
   const order = await Order.create({
     orderNumber: createOrderNumber(),
+    status: paymentMethod === "not_selected" ? "pending" : "awaiting_payment",
+    paymentStatus: "unpaid",
+    paymentMethod,
+    payment: {
+      provider: getPaymentProvider(paymentMethod),
+    },
     customer,
     items: orderItems,
     subtotal,
