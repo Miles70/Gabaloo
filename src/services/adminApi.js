@@ -147,3 +147,15 @@ export async function updateAdminProduct(token, productKey, updates) {
     body: updates,
   });
 }
+
+export async function getAdminCampaign(token) {
+  return adminRequest("/campaign", { token });
+}
+
+export async function updateAdminCampaign(token, campaign) {
+  return adminRequest("/campaign", {
+    token,
+    method: "PATCH",
+    body: campaign,
+  });
+}
