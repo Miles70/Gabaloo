@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { CreditCard, ShieldCheck, WalletCards } from "lucide-react";
 import { useLanguage } from "../i18n/LanguageContext";
 import { useCart } from "../context/CartContext";
 import { createOrder } from "../services/orderApi";
@@ -36,6 +37,7 @@ function Checkout() {
     address: "",
     note: "",
   });
+  const [paymentMethod, setPaymentMethod] = useState("crypto");
   const [error, setError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -57,9 +59,7 @@ function Checkout() {
   const shipping = 0;
   const total = subtotal + shipping;
 
-  const formatPrice = (price) => {
-    return `$${Number(price || 0).toFixed(2)}`;
-  };
+  const formatPrice = (price) => `$${Number(price || 0).toFixed(2)}`;
 
   const getCategoryLabel = (item) => {
     if (item.categoryKey) {
@@ -123,6 +123,7 @@ function Checkout() {
           productKey: item.key,
           quantity: Number(item.quantity || 1),
         })),
+        paymentMethod,
       });
 
       saveOrder(order);
@@ -174,7 +175,7 @@ function Checkout() {
         <span>
           {text(
             "checkoutPage.text",
-            "Fill your delivery details and place your order."
+            "Fill your delivery details and choose how you want to pay."
           )}
         </span>
       </section>
@@ -297,6 +298,80 @@ function Checkout() {
             />
           </div>
 
+          <section className="checkoutPaymentSection" aria-labelledby="payment-title">
+            <div className="checkoutPaymentHeader">
+              <div>
+                <h2 id="payment-title">
+                  {text("checkoutPage.paymentTitle", "Payment Method")}
+                </h2>
+                <p>
+                  {text(
+                    "checkoutPage.paymentText",
+                    "Crypto is available now. Card payments will be added next."
+                  )}
+                </p>
+              </div>
+
+              <span>
+                <ShieldCheck size={16} />
+                {text("checkoutPage.securePayment", "Secure")}
+              </span>
+            </div>
+
+            <div className="checkoutPaymentOptions">
+              <button
+                type="button"
+                className={`checkoutPaymentOption ${
+                  paymentMethod === "crypto" ? "active" : ""
+                }`}
+                onClick={() => setPaymentMethod("crypto")}
+                disabled={isSubmitting}
+                aria-pressed={paymentMethod === "crypto"}
+              >
+                <span className="checkoutPaymentIcon">
+                  <WalletCards size={21} />
+                </span>
+
+                <span>
+                  <strong>
+                    {text("checkoutPage.cryptoPayment", "Crypto Payment")}
+                  </strong>
+                  <small>
+                    {text(
+                      "checkoutPage.cryptoPaymentText",
+                      "Pay from your wallet. USDT on BNB Chain is first."
+                    )}
+                  </small>
+                </span>
+
+                <em>{text("checkoutPage.availableNow", "Available")}</em>
+              </button>
+
+              <button
+                type="button"
+                className="checkoutPaymentOption disabled"
+                disabled
+                aria-disabled="true"
+              >
+                <span className="checkoutPaymentIcon">
+                  <CreditCard size={21} />
+                </span>
+
+                <span>
+                  <strong>{text("checkoutPage.cardPayment", "Card Payment")}</strong>
+                  <small>
+                    {text(
+                      "checkoutPage.cardPaymentText",
+                      "Visa and Mastercard support is being prepared."
+                    )}
+                  </small>
+                </span>
+
+                <em>{text("checkoutPage.comingSoon", "Coming soon")}</em>
+              </button>
+            </div>
+          </section>
+
           <button
             type="submit"
             className="checkoutSubmitButton"
@@ -304,7 +379,7 @@ function Checkout() {
           >
             {isSubmitting
               ? text("checkoutPage.creatingOrder", "Creating order...")
-              : text("checkoutPage.placeOrder", "Place Order")}
+              : text("checkoutPage.placeCryptoOrder", "Create Crypto Order")}
           </button>
         </form>
 
@@ -332,7 +407,9 @@ function Checkout() {
                 </div>
 
                 <strong>
-                  {formatPrice(Number(item.price || 0) * Number(item.quantity || 1))}
+                  {formatPrice(
+                    Number(item.price || 0) * Number(item.quantity || 1)
+                  )}
                 </strong>
               </div>
             ))}
