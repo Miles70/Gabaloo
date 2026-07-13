@@ -22,6 +22,7 @@ import "./pages/CategoriesGroups.css";
 import "./styles/admin.css";
 import "./styles/admin-enhancements.css";
 import "./styles/admin-pagination.css";
+import "./styles/admin-order-deletion.css";
 
 function App() {
   return (
