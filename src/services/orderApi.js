@@ -22,3 +22,19 @@ export async function createOrder(payload) {
   const data = await parseResponse(response);
   return data.order;
 }
+
+export async function verifyOrderPayment(orderNumber, payload) {
+  const response = await fetch(
+    `${apiBaseUrl}/api/orders/${encodeURIComponent(orderNumber)}/verify-payment`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(payload),
+    }
+  );
+
+  const data = await parseResponse(response);
+  return data.order;
+}
