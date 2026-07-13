@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { CreditCard, ShieldCheck, WalletCards } from "lucide-react";
+import ProductThumbnail from "../components/ProductThumbnail/ProductThumbnail";
 import { useLanguage } from "../i18n/LanguageContext";
 import { useCart } from "../context/CartContext";
 import { createOrder } from "../services/orderApi";
@@ -395,7 +396,7 @@ function Checkout() {
             {cartItems.map((item) => (
               <div className="checkoutItem" key={item.key || item.id}>
                 <div className="checkoutItemImage">
-                  <span>{item.image}</span>
+                  <ProductThumbnail item={item} />
                 </div>
 
                 <div className="checkoutItemInfo">
