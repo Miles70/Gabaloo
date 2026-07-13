@@ -28,6 +28,7 @@ const orderItemSchema = new mongoose.Schema(
 
 const paymentSchema = new mongoose.Schema(
   {
+    configured: { type: Boolean, default: false },
     provider: {
       type: String,
       enum: ["none", "onchain", "stripe"],
@@ -37,11 +38,15 @@ const paymentSchema = new mongoose.Schema(
     chainId: { type: Number, min: 1, default: null },
     token: { type: String, trim: true, uppercase: true, default: "" },
     tokenAddress: { type: String, trim: true, lowercase: true, default: "" },
+    tokenDecimals: { type: Number, min: 0, max: 36, default: null },
     payerAddress: { type: String, trim: true, lowercase: true, default: "" },
     recipientAddress: { type: String, trim: true, lowercase: true, default: "" },
     transactionHash: { type: String, trim: true, lowercase: true, default: "" },
+    expectedAmount: { type: String, trim: true, default: "" },
     amount: { type: String, trim: true, default: "" },
     currency: { type: String, trim: true, uppercase: true, default: "" },
+    blockNumber: { type: Number, min: 0, default: null },
+    confirmations: { type: Number, min: 0, default: 0 },
     confirmedAt: { type: Date, default: null },
     failedAt: { type: Date, default: null },
     failureReason: { type: String, trim: true, default: "" },
