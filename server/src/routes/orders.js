@@ -1,6 +1,7 @@
 import { Router } from "express";
 import rateLimit from "express-rate-limit";
 import { Order } from "../models/Order.js";
+import { getCompatibleOrderNumbers } from "../services/orderNumberMigration.js";
 import { createOrder, serializeOrder } from "../services/orderService.js";
 import { verifyCryptoPayment } from "../services/paymentVerification.js";
 
@@ -53,7 +54,9 @@ ordersRouter.post(
       }
 
       const order = await Order.findOne({
-        orderNumber: request.params.orderNumber,
+        orderNumber: {
+          $in: getCompatibleOrderNumbers(request.params.orderNumber),
+        },
         "customer.email": email,
       });
 
@@ -83,7 +86,9 @@ ordersRouter.get("/:orderNumber", async (request, response, next) => {
     }
 
     const order = await Order.findOne({
-      orderNumber: request.params.orderNumber,
+      orderNumber: {
+        $in: getCompatibleOrderNumbers(request.params.orderNumber),
+      },
       "customer.email": email,
     });
 
