@@ -132,7 +132,7 @@ function CampaignSlider({ campaign }) {
   }, [activeIndex, slides.length]);
 
   useEffect(() => {
-    if (slides.length < 2 || paused || previousIndex !== null) return undefined;
+    if (slides.length < 2 || paused) return undefined;
 
     const timer = window.setTimeout(
       () => moveTo(activeIndex + 1, 1),
@@ -140,7 +140,7 @@ function CampaignSlider({ campaign }) {
     );
 
     return () => window.clearTimeout(timer);
-  }, [activeIndex, campaign.slideIntervalMs, moveTo, paused, previousIndex, slides.length]);
+  }, [activeIndex, campaign.slideIntervalMs, moveTo, paused, slides.length]);
 
   useEffect(
     () => () => {
