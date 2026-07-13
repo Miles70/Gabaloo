@@ -13,6 +13,7 @@ import LanguageSwitcher from "../LanguageSwitcher";
 import siteConfig from "../../config/site";
 
 import "./Header.css";
+import "./Logo.css";
 
 function shortenAddress(address) {
   if (!address) {
@@ -59,8 +60,21 @@ function Header() {
             className="logo"
             aria-label={`${siteConfig.brandName} home`}
           >
-            <span className="logoMark">G</span>
-            <span className="logoText">{siteConfig.brandName}</span>
+            <span className="logoMark" aria-hidden="true">
+              <svg className="logoGlyph" viewBox="0 0 48 48">
+                <path
+                  className="logoGlyphStroke"
+                  d="M34 15.5C31.2 12.6 27.9 11 23.6 11C16 11 10.5 16.4 10.5 24S16 37 23.6 37C27.9 37 31.5 35.5 34.4 32.8V25H24"
+                />
+                <circle className="logoGlyphDot" cx="34.4" cy="25" r="2.3" />
+              </svg>
+              <span className="logoSpark" />
+            </span>
+
+            <span className="logoText" aria-hidden="true">
+              <span className="logoTextCore">Gaba</span>
+              <span className="logoTextAccent">loo</span>
+            </span>
           </Link>
 
           <nav className="navLinks" aria-label="Main navigation">
