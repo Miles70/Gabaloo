@@ -1,6 +1,7 @@
 import { useLayoutEffect } from "react";
 import { Outlet, useLocation } from "react-router-dom";
 import CampaignShowcase from "../components/CampaignShowcase/CampaignShowcase";
+import SearchBar from "../components/SearchBar/SearchBar";
 import Header from "../components/Header/Header";
 import Footer from "../components/Footer/Footer";
 
@@ -17,6 +18,7 @@ function MainLayout() {
     <div className="app">
       <Header />
       {pathname === "/" ? <CampaignShowcase /> : null}
+      {pathname === "/" ? <SearchBar /> : null}
       <Outlet />
       <Footer />
     </div>
