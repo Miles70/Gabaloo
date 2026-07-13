@@ -174,8 +174,8 @@ adminHomeCampaignRouter.patch("/", async (request, response, next) => {
 
     const campaign = await HomeCampaign.findOneAndUpdate(
       { key: CAMPAIGN_KEY },
-      { $set: updates, $setOnInsert: defaults },
-      { new: true, upsert: true, runValidators: true, setDefaultsOnInsert: true },
+      { $set: updates },
+      { new: true, runValidators: true },
     ).lean();
 
     return response.json({ campaign: await serializeCampaign(campaign) });
