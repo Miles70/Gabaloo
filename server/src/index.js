@@ -16,7 +16,7 @@ async function startServer() {
 
   if (orderMigrationResult.modifiedCount > 0) {
     console.log(
-      `Legacy order numbers migrated: ${orderMigrationResult.modifiedCount} KMR orders changed to MTR.`,
+      `Legacy order numbers migrated: ${orderMigrationResult.modifiedCount} KMR/GBL orders changed to MTR.`,
     );
   }
 
