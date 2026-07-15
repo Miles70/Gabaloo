@@ -41,6 +41,7 @@ function AuthModal() {
     isConnected,
     isGuest,
     profileEmail,
+    providerAvailability,
     signOut,
     startSocialLogin,
     startWalletLogin,
@@ -75,10 +76,23 @@ function AuthModal() {
 
   const methodLabel = authType ? t(`auth.method.${authType}`) : "";
   const visibleName = isGuest ? t("auth.method.guest") : displayName;
+  const isBusy = Boolean(busyAction);
 
   function openAccountDashboard() {
     closeAuthModal();
     navigate("/account");
+  }
+
+  function renderProviderStatus(provider) {
+    if (providerAvailability?.[provider] !== false) {
+      return null;
+    }
+
+    return (
+      <small className="customerAuthOptionStatus">
+        {t("auth.providerSetupRequired")}
+      </small>
+    );
   }
 
   return (
@@ -121,45 +135,54 @@ function AuthModal() {
             <div className="customerAuthOptions">
               <button
                 type="button"
-                className="customerAuthOption customerAuthOption--google"
+                className={`customerAuthOption customerAuthOption--google${
+                  providerAvailability?.google === false ? " unavailable" : ""
+                }`}
                 onClick={() => startSocialLogin("google")}
-                disabled={Boolean(busyAction)}
+                disabled={isBusy || providerAvailability?.google === false}
               >
                 <span className="customerAuthOptionIcon">
                   <FcGoogle size={23} />
                 </span>
                 <span>{t("auth.continueGoogle")}</span>
+                {renderProviderStatus("google")}
               </button>
 
               <button
                 type="button"
-                className="customerAuthOption customerAuthOption--apple"
+                className={`customerAuthOption customerAuthOption--apple${
+                  providerAvailability?.apple === false ? " unavailable" : ""
+                }`}
                 onClick={() => startSocialLogin("apple")}
-                disabled={Boolean(busyAction)}
+                disabled={isBusy || providerAvailability?.apple === false}
               >
                 <span className="customerAuthOptionIcon customerAuthOptionIcon--apple">
                   <FaApple size={22} />
                 </span>
                 <span>{t("auth.continueApple")}</span>
+                {renderProviderStatus("apple")}
               </button>
 
               <button
                 type="button"
-                className="customerAuthOption customerAuthOption--facebook"
+                className={`customerAuthOption customerAuthOption--facebook${
+                  providerAvailability?.facebook === false ? " unavailable" : ""
+                }`}
                 onClick={() => startSocialLogin("facebook")}
-                disabled={Boolean(busyAction)}
+                disabled={isBusy || providerAvailability?.facebook === false}
               >
                 <span className="customerAuthOptionIcon customerAuthOptionIcon--facebook">
                   <FaFacebookF size={18} />
                 </span>
                 <span>{t("auth.continueFacebook")}</span>
+                {renderProviderStatus("facebook")}
               </button>
 
               <button
                 type="button"
                 className="customerAuthOption customerAuthOption--wallet"
                 onClick={startWalletLogin}
-                disabled={Boolean(busyAction)}
+                disabled={isBusy}
               >
                 <span className="customerAuthOptionIcon customerAuthOptionIcon--wallet">
                   <WalletCards size={21} />
@@ -176,7 +199,7 @@ function AuthModal() {
               type="button"
               className="customerAuthGuestButton"
               onClick={continueAsGuest}
-              disabled={Boolean(busyAction)}
+              disabled={isBusy}
             >
               <UserRound size={19} />
               <span>{t("auth.continueGuest")}</span>
@@ -259,7 +282,7 @@ function AuthModal() {
                 type="button"
                 className="customerAuthSecondaryAction"
                 onClick={signOut}
-                disabled={Boolean(busyAction)}
+                disabled={isBusy}
               >
                 <LogOut size={18} />
                 {t("auth.signOut")}
