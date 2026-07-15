@@ -19,7 +19,6 @@ import {
 
 import { appKit } from "../config/wagmi";
 import {
-  appleAuthProvider,
   facebookAuthProvider,
   firebaseAuth,
   firebaseProviderAvailability,
@@ -33,7 +32,6 @@ const SOCIAL_PHOTO_STORAGE_PREFIX = "gabaloo_social_photo_";
 const FIREBASE_PROVIDERS = {
   google: googleAuthProvider,
   facebook: facebookAuthProvider,
-  apple: appleAuthProvider,
 };
 
 function createGuestId() {
@@ -173,8 +171,6 @@ function getFirebaseAuthType(user) {
       return "google";
     case "facebook.com":
       return "facebook";
-    case "apple.com":
-      return "apple";
     default:
       return "email";
   }
