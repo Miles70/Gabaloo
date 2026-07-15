@@ -65,6 +65,8 @@
 }
 
 .logoText {
+  position: relative;
+  padding-bottom: 11px;
   display: inline-flex;
   align-items: baseline;
   line-height: 1;
@@ -81,18 +83,30 @@
   text-rendering: geometricPrecision;
 }
 
-.logoTextCore {
+.logoText::after {
+  content: "Shop - Travel - Discover";
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 1px;
+  color: #6b7280;
+  font-size: 0.5rem;
+  font-weight: 750;
+  line-height: 1;
+  letter-spacing: 0.075em;
+  white-space: nowrap;
+}
+
+.logoTextCore,
+.logoTextAccent {
   color: #11152b;
 }
 
 .logoTextAccent {
   margin-left: 1px;
-  background: linear-gradient(135deg, #7138e8 0%, #c72592 42%, #f01860 100%);
-  background-clip: text;
-  -webkit-background-clip: text;
-  color: transparent;
-  -webkit-text-fill-color: transparent;
-  text-shadow: 0 5px 16px rgba(207, 31, 112, 0.12);
+  background: none;
+  -webkit-text-fill-color: currentColor;
+  text-shadow: none;
 }
 
 @media (max-width: 620px) {
