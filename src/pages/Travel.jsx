@@ -14,70 +14,26 @@ import {
   WalletCards,
 } from "lucide-react";
 
+import { useLanguage } from "../i18n/LanguageContext";
 import "./Travel.css";
 
 const services = [
-  { key: "hotels", label: "Oteller", icon: Hotel },
-  { key: "flights", label: "Uçuşlar", icon: Plane },
-  { key: "cars", label: "Araç Kiralama", icon: CarFront },
-  { key: "activities", label: "Aktiviteler", icon: MapPinned },
+  { key: "hotels", icon: Hotel },
+  { key: "flights", icon: Plane },
+  { key: "cars", icon: CarFront },
+  { key: "activities", icon: MapPinned },
 ];
 
-const serviceContent = {
-  hotels: {
-    eyebrow: "Konaklama rotanı bul",
-    title: "Nereye gitmek istiyorsun?",
-    locationLabel: "Destinasyon",
-    locationPlaceholder: "Antalya, İstanbul, Roma...",
-    button: "Otel Ara",
-  },
-  flights: {
-    eyebrow: "Uçuş rotanı planla",
-    title: "Sıradaki yolculuğun nerede başlıyor?",
-    locationLabel: "Kalkış ve varış",
-    locationPlaceholder: "Antalya → Moskova",
-    button: "Uçuş Ara",
-  },
-  cars: {
-    eyebrow: "Yolculuğuna özgürlük kat",
-    title: "Aracını nereden teslim almak istiyorsun?",
-    locationLabel: "Teslim alma noktası",
-    locationPlaceholder: "Antalya Havalimanı",
-    button: "Araç Ara",
-  },
-  activities: {
-    eyebrow: "Şehri gerçekten keşfet",
-    title: "Hangi şehirde deneyim arıyorsun?",
-    locationLabel: "Şehir veya bölge",
-    locationPlaceholder: "Kapadokya, Dubai, Phuket...",
-    button: "Aktivite Ara",
-  },
-};
-
 const routeCards = [
-  {
-    title: "Antalya Rotası",
-    text: "Sahil otelleri, transfer ve yaz deneyimleri.",
-    icon: Hotel,
-    badge: "Popüler",
-  },
-  {
-    title: "İstanbul Rotası",
-    text: "Şehir otelleri, uçuşlar ve özel aktiviteler.",
-    icon: Plane,
-    badge: "Şehir",
-  },
-  {
-    title: "Özgür Yolculuk",
-    text: "Araç kirala, kendi rotanı kendin oluştur.",
-    icon: CarFront,
-    badge: "Yakında",
-  },
+  { key: "antalya", icon: Hotel },
+  { key: "istanbul", icon: Plane },
+  { key: "freedom", icon: CarFront },
 ];
 
 function Travel() {
   const [activeService, setActiveService] = useState("hotels");
-  const activeContent = serviceContent[activeService];
+  const { t } = useLanguage();
+  const activeServiceKey = `travelPage.services.${activeService}`;
 
   function handleSearch(event) {
     event.preventDefault();
@@ -98,37 +54,38 @@ function Travel() {
                   <strong>MASTER</strong>
                   <span>OTA</span>
                 </div>
-                <small>ONLINE TRAVEL AGENCY</small>
+                <small>{t("travelPage.onlineTravelAgency")}</small>
               </div>
             </div>
 
             <span className="travelPill">
               <Sparkles size={15} />
-              Masterota Travel
+              {t("travelPage.pill")}
             </span>
 
             <h1>
-              Tatil rotanı tek yerde <span>oluştur.</span>
+              {t("travelPage.heroTitle")} <span>{t("travelPage.heroAccent")}</span>
             </h1>
 
-            <p>
-              Otelini bul, uçuşunu planla, aracını kirala ve deneyimlerini
-              yolculuğuna ekle. Yakında kart veya kripto ile tek platformdan.
-            </p>
+            <p>{t("travelPage.heroText")}</p>
 
             <div className="travelTrustRow">
               <span>
-                <ShieldCheck size={17} /> Güvenli rezervasyon altyapısı
+                <ShieldCheck size={17} /> {t("travelPage.trustSecure")}
               </span>
               <span>
-                <WalletCards size={17} /> Kart ve Web3 ödeme vizyonu
+                <WalletCards size={17} /> {t("travelPage.trustPayment")}
               </span>
             </div>
           </div>
 
           <div className="travelSearchShell">
-            <div className="travelServiceTabs" role="tablist" aria-label="Travel services">
-              {services.map(({ key, label, icon: Icon }) => (
+            <div
+              className="travelServiceTabs"
+              role="tablist"
+              aria-label={t("travelPage.servicesLabel")}
+            >
+              {services.map(({ key, icon: Icon }) => (
                 <button
                   type="button"
                   key={key}
@@ -138,31 +95,31 @@ function Travel() {
                   onClick={() => setActiveService(key)}
                 >
                   <Icon size={18} />
-                  <span>{label}</span>
+                  <span>{t(`travelPage.services.${key}.label`)}</span>
                 </button>
               ))}
             </div>
 
             <form className="travelSearchCard" onSubmit={handleSearch}>
               <div className="travelSearchHeading">
-                <span>{activeContent.eyebrow}</span>
-                <h2>{activeContent.title}</h2>
+                <span>{t(`${activeServiceKey}.eyebrow`)}</span>
+                <h2>{t(`${activeServiceKey}.title`)}</h2>
               </div>
 
               <div className="travelSearchGrid">
                 <label className="travelField travelField--wide">
-                  <span>{activeContent.locationLabel}</span>
+                  <span>{t(`${activeServiceKey}.locationLabel`)}</span>
                   <div>
                     <MapPin size={18} />
                     <input
                       type="text"
-                      placeholder={activeContent.locationPlaceholder}
+                      placeholder={t(`${activeServiceKey}.locationPlaceholder`)}
                     />
                   </div>
                 </label>
 
                 <label className="travelField">
-                  <span>Başlangıç</span>
+                  <span>{t("travelPage.search.start")}</span>
                   <div>
                     <CalendarDays size={18} />
                     <input type="date" />
@@ -170,7 +127,7 @@ function Travel() {
                 </label>
 
                 <label className="travelField">
-                  <span>Bitiş</span>
+                  <span>{t("travelPage.search.end")}</span>
                   <div>
                     <CalendarDays size={18} />
                     <input type="date" />
@@ -178,28 +135,27 @@ function Travel() {
                 </label>
 
                 <label className="travelField">
-                  <span>Misafir / Yolcu</span>
+                  <span>{t("travelPage.search.guests")}</span>
                   <div>
                     <UsersRound size={18} />
                     <select defaultValue="2">
-                      <option value="1">1 kişi</option>
-                      <option value="2">2 kişi</option>
-                      <option value="3">3 kişi</option>
-                      <option value="4">4 kişi</option>
-                      <option value="5">5+ kişi</option>
+                      <option value="1">{t("travelPage.search.people1")}</option>
+                      <option value="2">{t("travelPage.search.people2")}</option>
+                      <option value="3">{t("travelPage.search.people3")}</option>
+                      <option value="4">{t("travelPage.search.people4")}</option>
+                      <option value="5">{t("travelPage.search.people5")}</option>
                     </select>
                   </div>
                 </label>
 
                 <button className="travelSearchButton" type="submit">
                   <Search size={19} />
-                  {activeContent.button}
+                  {t(`${activeServiceKey}.button`)}
                 </button>
               </div>
 
               <p className="travelPrototypeNote">
-                Arama ekranı hazır. Gerçek fiyat ve müsaitlik sonuçları travel
-                API bağlantısıyla burada açılacak.
+                {t("travelPage.prototypeNote")}
               </p>
             </form>
           </div>
@@ -210,26 +166,23 @@ function Travel() {
         <div className="travelContainer">
           <div className="travelSectionHeading">
             <div>
-              <span>MASTEROTA ROTALARI</span>
-              <h2>Alışveriş rotandan tatil rotana.</h2>
+              <span>{t("travelPage.routesEyebrow")}</span>
+              <h2>{t("travelPage.routesTitle")}</h2>
             </div>
-            <p>
-              Travel bölümü mağazadan ayrı çalışır; hesap, dil ve ödeme
-              deneyimi Masterota çatısı altında kalır.
-            </p>
+            <p>{t("travelPage.routesText")}</p>
           </div>
 
           <div className="travelRouteGrid">
-            {routeCards.map(({ title, text, icon: Icon, badge }) => (
-              <article className="travelRouteCard" key={title}>
+            {routeCards.map(({ key, icon: Icon }) => (
+              <article className="travelRouteCard" key={key}>
                 <div className="travelRouteIcon">
                   <Icon size={24} />
                 </div>
-                <span>{badge}</span>
-                <h3>{title}</h3>
-                <p>{text}</p>
+                <span>{t(`travelPage.cards.${key}.badge`)}</span>
+                <h3>{t(`travelPage.cards.${key}.title`)}</h3>
+                <p>{t(`travelPage.cards.${key}.text`)}</p>
                 <button type="button">
-                  Rotayı keşfet <ArrowRight size={17} />
+                  {t("travelPage.exploreRoute")} <ArrowRight size={17} />
                 </button>
               </article>
             ))}
