@@ -8,7 +8,7 @@ import {
   X,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import { FaApple, FaFacebookF } from "react-icons/fa";
+import { FaFacebookF } from "react-icons/fa";
 import { FcGoogle } from "react-icons/fc";
 
 import CustomerAvatar from "../CustomerAvatar/CustomerAvatar";
@@ -146,21 +146,6 @@ function AuthModal() {
                 </span>
                 <span>{t("auth.continueGoogle")}</span>
                 {renderProviderStatus("google")}
-              </button>
-
-              <button
-                type="button"
-                className={`customerAuthOption customerAuthOption--apple${
-                  providerAvailability?.apple === false ? " unavailable" : ""
-                }`}
-                onClick={() => startSocialLogin("apple")}
-                disabled={isBusy || providerAvailability?.apple === false}
-              >
-                <span className="customerAuthOptionIcon customerAuthOptionIcon--apple">
-                  <FaApple size={22} />
-                </span>
-                <span>{t("auth.continueApple")}</span>
-                {renderProviderStatus("apple")}
               </button>
 
               <button
