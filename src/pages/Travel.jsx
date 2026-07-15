@@ -16,6 +16,7 @@ import {
 
 import { useLanguage } from "../i18n/LanguageContext";
 import "./Travel.css";
+import "./TravelHeader.css";
 
 const services = [
   { key: "hotels", icon: Hotel },
