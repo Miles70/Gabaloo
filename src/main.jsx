@@ -6,6 +6,7 @@ import { WagmiProvider } from "wagmi";
 import "./utils/orderStorage";
 import { LanguageProvider } from "./i18n/LanguageContext";
 import { CartProvider } from "./context/CartContext";
+import { CustomerAuthProvider } from "./context/CustomerAuthContext";
 import { AdminAuthProvider } from "./context/AdminAuthContext";
 import { wagmiAdapter } from "./config/wagmi";
 
@@ -19,11 +20,13 @@ createRoot(document.getElementById("root")).render(
     <QueryClientProvider client={queryClient}>
       <BrowserRouter>
         <LanguageProvider>
-          <CartProvider>
-            <AdminAuthProvider>
-              <App />
-            </AdminAuthProvider>
-          </CartProvider>
+          <CustomerAuthProvider>
+            <CartProvider>
+              <AdminAuthProvider>
+                <App />
+              </AdminAuthProvider>
+            </CartProvider>
+          </CustomerAuthProvider>
         </LanguageProvider>
       </BrowserRouter>
     </QueryClientProvider>
