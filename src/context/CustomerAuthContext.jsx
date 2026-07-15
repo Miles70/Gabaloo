@@ -8,6 +8,7 @@ import {
   useAppKitAccount,
   useDisconnect,
 } from "@reown/appkit/react";
+import { ChainController } from "@reown/appkit-controllers";
 import { executeSocialLogin } from "@reown/appkit-controllers/utils";
 
 import { appKit } from "../config/wagmi";
@@ -80,9 +81,31 @@ export function CustomerAuthProvider({ children }) {
   const [guestSession, setGuestSession] = useState(readGuestSession);
   const [busyAction, setBusyAction] = useState("");
   const [errorCode, setErrorCode] = useState("");
+  const [reownProfile, setReownProfile] = useState({
+    name: "",
+    image: "",
+  });
 
   const { address, embeddedWalletInfo, isConnected } = useAppKitAccount();
   const { disconnect } = useDisconnect();
+
+  useEffect(() => {
+    function syncReownProfile() {
+      const accountData = ChainController.getAccountData();
+
+      setReownProfile({
+        name: accountData?.profileName || "",
+        image: accountData?.profileImage || "",
+      });
+    }
+
+    syncReownProfile();
+    const unsubscribe = ChainController.subscribe(syncReownProfile);
+
+    return () => {
+      unsubscribe?.();
+    };
+  }, []);
 
   useEffect(() => {
     if (!isConnected) {
@@ -107,6 +130,7 @@ export function CustomerAuthProvider({ children }) {
 
   const profileEmail = socialUser?.email || "";
   const profileImage =
+    reownProfile.image ||
     socialUser?.profileImage ||
     socialUser?.avatar ||
     socialUser?.picture ||
@@ -114,7 +138,8 @@ export function CustomerAuthProvider({ children }) {
     "";
 
   const displayName = isConnected
-    ? socialUser?.name ||
+    ? reownProfile.name ||
+      socialUser?.name ||
       socialUser?.username ||
       profileEmail?.split("@")[0] ||
       shortenAddress(address) ||
