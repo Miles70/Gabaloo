@@ -8,7 +8,7 @@ import {
   WalletCards,
   X,
 } from "lucide-react";
-import { FaFacebookF } from "react-icons/fa";
+import { FaApple, FaFacebookF } from "react-icons/fa";
 import { FcGoogle } from "react-icons/fc";
 
 import { useCustomerAuth } from "../../context/CustomerAuthContext";
@@ -123,6 +123,18 @@ function AuthModal() {
                   <FcGoogle size={23} />
                 </span>
                 <span>{t("auth.continueGoogle")}</span>
+              </button>
+
+              <button
+                type="button"
+                className="customerAuthOption customerAuthOption--apple"
+                onClick={() => startSocialLogin("apple")}
+                disabled={Boolean(busyAction)}
+              >
+                <span className="customerAuthOptionIcon customerAuthOptionIcon--apple">
+                  <FaApple size={22} />
+                </span>
+                <span>{t("auth.continueApple")}</span>
               </button>
 
               <button
