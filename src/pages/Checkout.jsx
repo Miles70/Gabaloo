@@ -1,9 +1,10 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { CreditCard, ShieldCheck, WalletCards } from "lucide-react";
 import ProductThumbnail from "../components/ProductThumbnail/ProductThumbnail";
 import { useLanguage } from "../i18n/LanguageContext";
 import { useCart } from "../context/CartContext";
+import { useCustomerAccount } from "../context/CustomerAccountContext";
 import { createOrder } from "../services/orderApi";
 import "./Checkout.css";
 
@@ -16,19 +17,24 @@ function safeParse(value, fallback) {
 }
 
 function saveOrder(order) {
-  const existingOrders = safeParse(localStorage.getItem("kemalreis_orders"), []);
+  const existingOrders = safeParse(localStorage.getItem("gabaloo_orders"), []);
   const nextOrders = Array.isArray(existingOrders)
     ? [order, ...existingOrders]
     : [order];
 
-  localStorage.setItem("kemalreis_orders", JSON.stringify(nextOrders));
-  localStorage.setItem("kemalreis_last_order", JSON.stringify(order));
+  localStorage.setItem("gabaloo_orders", JSON.stringify(nextOrders));
+  localStorage.setItem("gabaloo_last_order", JSON.stringify(order));
 }
 
 function Checkout() {
   const navigate = useNavigate();
   const { t } = useLanguage();
   const { cartItems, cartTotal } = useCart();
+  const {
+    defaultAddress,
+    profile,
+    rememberCheckoutDetails,
+  } = useCustomerAccount();
 
   const [formData, setFormData] = useState({
     fullName: "",
@@ -41,6 +47,25 @@ function Checkout() {
   const [paymentMethod, setPaymentMethod] = useState("crypto");
   const [error, setError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  useEffect(() => {
+    setFormData((previous) => ({
+      ...previous,
+      fullName:
+        previous.fullName ||
+        defaultAddress?.fullName ||
+        profile.fullName ||
+        "",
+      email: previous.email || profile.email || "",
+      phone:
+        previous.phone ||
+        defaultAddress?.phone ||
+        profile.phone ||
+        "",
+      city: previous.city || defaultAddress?.city || "",
+      address: previous.address || defaultAddress?.address || "",
+    }));
+  }, [defaultAddress, profile]);
 
   const text = (key, fallback) => {
     const value = t(key);
@@ -66,7 +91,7 @@ function Checkout() {
     if (item.categoryKey) {
       return text(
         `categories.${item.categoryKey}.title`,
-        item.category || text("checkoutPage.generalCategory", "General")
+        item.category || text("checkoutPage.generalCategory", "General"),
       );
     }
 
@@ -88,7 +113,6 @@ function Checkout() {
     event.preventDefault();
 
     if (isSubmitting) return;
-
     if (!hasItems) {
       setError(text("checkoutPage.emptyError", "Your cart is empty."));
       return;
@@ -102,7 +126,7 @@ function Checkout() {
       !formData.address.trim()
     ) {
       setError(
-        text("checkoutPage.requiredError", "Please fill in all required fields.")
+        text("checkoutPage.requiredError", "Please fill in all required fields."),
       );
       return;
     }
@@ -128,14 +152,15 @@ function Checkout() {
       });
 
       saveOrder(order);
+      rememberCheckoutDetails(formData);
       navigate("/order-success");
     } catch (submitError) {
       setError(
         submitError.message ||
           text(
             "checkoutPage.serverError",
-            "The order could not be created. Please try again."
-          )
+            "The order could not be created. Please try again.",
+          ),
       );
     } finally {
       setIsSubmitting(false);
@@ -151,7 +176,7 @@ function Checkout() {
           <p>
             {text(
               "checkoutPage.emptyText",
-              "Add some products before checkout."
+              "Add some products before checkout.",
             )}
           </p>
 
@@ -175,7 +200,7 @@ function Checkout() {
         <span>
           {text(
             "checkoutPage.text",
-            "Fill your delivery details and choose how you want to pay."
+            "Fill your delivery details and choose how you want to pay.",
           )}
         </span>
       </section>
@@ -187,7 +212,7 @@ function Checkout() {
             <p>
               {text(
                 "checkoutPage.requiredText",
-                "Required fields are marked with *"
+                "Required fields are marked with *",
               )}
             </p>
           </div>
@@ -220,7 +245,7 @@ function Checkout() {
                 type="email"
                 placeholder={text(
                   "checkoutPage.emailPlaceholder",
-                  "john@example.com"
+                  "john@example.com",
                 )}
                 value={formData.email}
                 onChange={handleChange}
@@ -238,7 +263,7 @@ function Checkout() {
                 type="tel"
                 placeholder={text(
                   "checkoutPage.phonePlaceholder",
-                  "+90 555 555 55 55"
+                  "+90 555 555 55 55",
                 )}
                 value={formData.phone}
                 onChange={handleChange}
@@ -272,7 +297,7 @@ function Checkout() {
               rows="4"
               placeholder={text(
                 "checkoutPage.addressPlaceholder",
-                "Full delivery address"
+                "Full delivery address",
               )}
               value={formData.address}
               onChange={handleChange}
@@ -290,7 +315,7 @@ function Checkout() {
               rows="3"
               placeholder={text(
                 "checkoutPage.notePlaceholder",
-                "Optional note for your order"
+                "Optional note for your order",
               )}
               value={formData.note}
               onChange={handleChange}
@@ -307,7 +332,7 @@ function Checkout() {
                 <p>
                   {text(
                     "checkoutPage.paymentText",
-                    "Crypto is available now. Card payments will be added next."
+                    "Crypto is available now. Card payments will be added next.",
                   )}
                 </p>
               </div>
@@ -339,7 +364,7 @@ function Checkout() {
                   <small>
                     {text(
                       "checkoutPage.cryptoPaymentText",
-                      "Pay from your wallet. USDT on BNB Chain is first."
+                      "Pay from your wallet. USDT on BNB Chain is first.",
                     )}
                   </small>
                 </span>
@@ -362,7 +387,7 @@ function Checkout() {
                   <small>
                     {text(
                       "checkoutPage.cardPaymentText",
-                      "Visa and Mastercard support is being prepared."
+                      "Visa and Mastercard support is being prepared.",
                     )}
                   </small>
                 </span>
@@ -408,7 +433,7 @@ function Checkout() {
 
                 <strong>
                   {formatPrice(
-                    Number(item.price || 0) * Number(item.quantity || 1)
+                    Number(item.price || 0) * Number(item.quantity || 1),
                   )}
                 </strong>
               </div>
