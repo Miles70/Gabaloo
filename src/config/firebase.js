@@ -2,7 +2,6 @@ import { getApp, getApps, initializeApp } from "firebase/app";
 import {
   FacebookAuthProvider,
   GoogleAuthProvider,
-  OAuthProvider,
   browserLocalPersistence,
   getAuth,
   setPersistence,
@@ -34,14 +33,9 @@ googleAuthProvider.setCustomParameters({
 export const facebookAuthProvider = new FacebookAuthProvider();
 facebookAuthProvider.addScope("email");
 
-export const appleAuthProvider = new OAuthProvider("apple.com");
-appleAuthProvider.addScope("email");
-appleAuthProvider.addScope("name");
-
 export const firebaseProviderAvailability = {
   google: true,
   facebook: true,
-  apple: false,
 };
 
 export default firebaseApp;
