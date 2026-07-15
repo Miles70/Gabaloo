@@ -5,14 +5,17 @@ import ar from "./locales/ar";
 import zh from "./locales/zh";
 import paymentTranslations from "./paymentTranslations";
 import authTranslations from "./authTranslations";
+import accountTranslations from "./accountTranslations";
 
 function withSharedTranslations(baseTranslations, language) {
   const payment = paymentTranslations[language] || paymentTranslations.en;
   const auth = authTranslations[language] || authTranslations.en;
+  const account = accountTranslations[language] || accountTranslations.en;
 
   return {
     ...baseTranslations,
     auth,
+    account,
     checkoutPage: {
       ...baseTranslations.checkoutPage,
       ...payment.checkoutPage,
