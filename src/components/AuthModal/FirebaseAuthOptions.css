@@ -24,12 +24,6 @@
   text-transform: uppercase;
 }
 
-.customerAuthOption--apple .customerAuthOptionStatus {
-  border-color: rgba(255, 255, 255, 0.15);
-  background: rgba(255, 255, 255, 0.12);
-  color: rgba(255, 255, 255, 0.78);
-}
-
 @media (max-width: 520px) {
   .customerAuthOptionStatus {
     display: none;
