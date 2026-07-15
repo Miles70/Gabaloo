@@ -6,6 +6,7 @@ import { useCart } from "../../context/CartContext";
 import { useCustomerAuth } from "../../context/CustomerAuthContext";
 import { useCustomerAccount } from "../../context/CustomerAccountContext";
 import "./ProductCard.css";
+import "./ProductFavorite.css";
 
 const badgeTranslations = {
   en: {
