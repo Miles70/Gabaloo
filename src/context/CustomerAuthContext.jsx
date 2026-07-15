@@ -6,7 +6,7 @@ import {
 } from "react";
 import {
   useAppKitAccount,
-  useAppKitState,
+  useDisconnect,
 } from "@reown/appkit/react";
 import { executeSocialLogin } from "@reown/appkit-controllers/utils";
 
@@ -14,6 +14,11 @@ import { appKit } from "../config/wagmi";
 
 const CustomerAuthContext = createContext(null);
 const GUEST_STORAGE_KEY = "gabaloo_guest_session";
+const SUPPORTED_SOCIAL_PROVIDERS = new Set([
+  "google",
+  "apple",
+  "facebook",
+]);
 
 function createGuestId() {
   if (globalThis.crypto?.randomUUID) {
@@ -60,7 +65,7 @@ export function CustomerAuthProvider({ children }) {
   const [errorCode, setErrorCode] = useState("");
 
   const { address, embeddedWalletInfo, isConnected } = useAppKitAccount();
-  const { initialized, socials } = useAppKitState();
+  const { disconnect } = useDisconnect();
 
   useEffect(() => {
     if (!isConnected) {
@@ -111,10 +116,7 @@ export function CustomerAuthProvider({ children }) {
       return;
     }
 
-    if (
-      initialized &&
-      (!Array.isArray(socials) || !socials.includes(provider))
-    ) {
+    if (!SUPPORTED_SOCIAL_PROVIDERS.has(provider)) {
       setErrorCode("socialUnavailable");
       return;
     }
@@ -193,7 +195,7 @@ export function CustomerAuthProvider({ children }) {
 
     try {
       if (isConnected) {
-        await appKit.disconnect();
+        await disconnect();
       }
 
       localStorage.removeItem(GUEST_STORAGE_KEY);
