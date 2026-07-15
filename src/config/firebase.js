@@ -40,7 +40,7 @@ appleAuthProvider.addScope("name");
 
 export const firebaseProviderAvailability = {
   google: true,
-  facebook: false,
+  facebook: true,
   apple: false,
 };
 
