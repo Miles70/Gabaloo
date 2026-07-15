@@ -12,7 +12,7 @@ import { AdminAuthProvider } from "./context/AdminAuthContext";
 import { wagmiAdapter } from "./config/wagmi";
 
 import "./index.css";
-import "./styles/reown-social-auth.css";
+import "./components/AuthModal/FirebaseAuthOptions.css";
 import App from "./App.jsx";
 
 const queryClient = new QueryClient();
