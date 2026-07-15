@@ -11,7 +11,10 @@ import {
   ShoppingBag,
   Sparkles,
   UserRound,
+  WalletCards,
 } from "lucide-react";
+import { FaFacebookF } from "react-icons/fa";
+import { FcGoogle } from "react-icons/fc";
 
 import { useLanguage } from "../../i18n/LanguageContext";
 import { useCart } from "../../context/CartContext";
@@ -33,12 +36,17 @@ function Header() {
   const {
     address,
     authType,
+    busyAction,
+    continueAsGuest,
     displayName,
     isAuthenticated,
     isGuest,
     openAuthModal,
     profileEmail,
+    providerAvailability,
     signOut,
+    startSocialLogin,
+    startWalletLogin,
     upgradeGuestAccount,
   } = useCustomerAuth();
 
@@ -52,6 +60,8 @@ function Header() {
     : isGuest
       ? text("auth.headerGuest", "Guest")
       : displayName;
+
+  const isLoginBusy = Boolean(busyAction);
 
   useEffect(() => {
     setIsAccountMenuOpen(false);
@@ -203,6 +213,62 @@ function Header() {
                   />
                 )}
               </button>
+
+              {!isAuthenticated && (
+                <div
+                  className="customerLoginPreview"
+                  role="menu"
+                  aria-label={accountLabel}
+                >
+                  <button
+                    type="button"
+                    role="menuitem"
+                    onClick={() => startSocialLogin("google")}
+                    disabled={isLoginBusy || providerAvailability?.google === false}
+                  >
+                    <span className="customerLoginPreviewIcon">
+                      <FcGoogle size={20} />
+                    </span>
+                    {t("auth.continueGoogle")}
+                  </button>
+
+                  <button
+                    type="button"
+                    role="menuitem"
+                    onClick={() => startSocialLogin("facebook")}
+                    disabled={isLoginBusy || providerAvailability?.facebook === false}
+                  >
+                    <span className="customerLoginPreviewIcon customerLoginPreviewIcon--facebook">
+                      <FaFacebookF size={15} />
+                    </span>
+                    {t("auth.continueFacebook")}
+                  </button>
+
+                  <button
+                    type="button"
+                    role="menuitem"
+                    onClick={startWalletLogin}
+                    disabled={isLoginBusy}
+                  >
+                    <span className="customerLoginPreviewIcon customerLoginPreviewIcon--wallet">
+                      <WalletCards size={17} />
+                    </span>
+                    {t("auth.continueWallet")}
+                  </button>
+
+                  <button
+                    type="button"
+                    role="menuitem"
+                    onClick={continueAsGuest}
+                    disabled={isLoginBusy}
+                  >
+                    <span className="customerLoginPreviewIcon customerLoginPreviewIcon--guest">
+                      <UserRound size={17} />
+                    </span>
+                    {t("auth.continueGuest")}
+                  </button>
+                </div>
+              )}
 
               {isAuthenticated && isAccountMenuOpen && (
                 <div className="customerAccountDropdown" role="menu">
