@@ -3,37 +3,34 @@ import {
   ArrowRight,
   ShoppingBag,
   Sparkles,
-  WalletCards,
+  UserRound,
 } from "lucide-react";
-import { useAppKit, useAppKitAccount } from "@reown/appkit/react";
 
 import { useLanguage } from "../../i18n/LanguageContext";
 import { useCart } from "../../context/CartContext";
+import { useCustomerAuth } from "../../context/CustomerAuthContext";
 import LanguageSwitcher from "../LanguageSwitcher";
 import siteConfig from "../../config/site";
 
 import "./Header.css";
+import "./AuthHeader.css";
 import "./Logo.css";
-
-function shortenAddress(address) {
-  if (!address) {
-    return "";
-  }
-
-  return `${address.slice(0, 6)}...${address.slice(-4)}`;
-}
 
 function Header() {
   const { t } = useLanguage();
   const { cartCount } = useCart();
-  const { open } = useAppKit();
-  const { address, isConnected } = useAppKitAccount();
+  const {
+    displayName,
+    isAuthenticated,
+    isGuest,
+    openAuthModal,
+  } = useCustomerAuth();
 
-  const handleWalletClick = () => {
-    open({
-      view: isConnected ? "Account" : "Connect",
-    });
-  };
+  const accountLabel = !isAuthenticated
+    ? t("auth.headerSignIn")
+    : isGuest
+      ? t("auth.headerGuest")
+      : displayName;
 
   return (
     <header className="headerWrapper">
@@ -111,16 +108,22 @@ function Header() {
           <div className="headerActions">
             <button
               type="button"
-              className="walletConnectButton"
-              onClick={handleWalletClick}
+              className={`customerHeaderAuthButton${
+                isAuthenticated ? " customerHeaderAuthButton--active" : ""
+              }${isGuest ? " customerHeaderAuthButton--guest" : ""}`}
+              onClick={openAuthModal}
+              aria-label={accountLabel}
+              title={accountLabel}
             >
-              <WalletCards size={17} />
-
-              <span>
-                {isConnected
-                  ? shortenAddress(address)
-                  : t("header.connectWallet")}
+              <span className="customerHeaderAuthIcon" aria-hidden="true">
+                <UserRound size={17} />
               </span>
+
+              <span className="customerHeaderAuthText">{accountLabel}</span>
+
+              {isAuthenticated && (
+                <span className="customerHeaderAuthStatus" aria-hidden="true" />
+              )}
             </button>
 
             <Link
