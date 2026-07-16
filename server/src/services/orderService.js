@@ -157,9 +157,11 @@ function createAvailabilityError(productKey, product) {
   return error;
 }
 
-async function reserveRequestedProducts(requestedItems, session = null) {
-  const orderItems = [];
-
+async function reserveRequestedProducts(
+  requestedItems,
+  session = null,
+  orderItems = []
+) {
   for (const { productKey, quantity } of requestedItems) {
     const options = {
       returnDocument: "after",
@@ -256,10 +258,10 @@ async function createOrderWithTransaction({ customer, paymentMethod, requestedIt
 }
 
 async function createOrderWithCompensation({ customer, paymentMethod, requestedItems }) {
-  let orderItems = [];
+  const orderItems = [];
 
   try {
-    orderItems = await reserveRequestedProducts(requestedItems);
+    await reserveRequestedProducts(requestedItems, null, orderItems);
     return await Order.create(buildOrderData({ customer, paymentMethod, orderItems }));
   } catch (error) {
     try {
