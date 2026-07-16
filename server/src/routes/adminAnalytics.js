@@ -4,7 +4,16 @@ import { Order } from "../models/Order.js";
 
 export const adminAnalyticsRouter = Router();
 
-const orderStatuses = ["pending", "processing", "shipped", "completed", "cancelled"];
+const orderStatuses = [
+  "awaiting_payment",
+  "pending",
+  "processing",
+  "shipped",
+  "delivered",
+  "completed",
+  "cancelled",
+  "expired",
+];
 
 function startOfUtcDay(daysAgo = 0) {
   const date = new Date();
