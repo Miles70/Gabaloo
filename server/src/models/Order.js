@@ -72,6 +72,7 @@ const orderSchema = new mongoose.Schema(
         "delivered",
         "completed",
         "cancelled",
+        "expired",
       ],
       default: "awaiting_payment",
       index: true,
@@ -107,10 +108,24 @@ const orderSchema = new mongoose.Schema(
     shipping: { type: Number, required: true, min: 0, default: 0 },
     total: { type: Number, required: true, min: 0 },
     currency: { type: String, default: "USD", uppercase: true },
+    reservationExpiresAt: { type: Date, default: null, index: true },
+    stockReserved: { type: Boolean, default: false, index: true },
+    stockReleasedAt: { type: Date, default: null },
+    stockCommittedAt: { type: Date, default: null },
   },
   {
     timestamps: true,
     versionKey: false,
+  }
+);
+
+orderSchema.index(
+  { "payment.transactionHash": 1 },
+  {
+    unique: true,
+    partialFilterExpression: {
+      "payment.transactionHash": { $type: "string", $gt: "" },
+    },
   }
 );
 
