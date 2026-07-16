@@ -51,9 +51,9 @@ function Travel() {
             <div className="travelBrandBlock">
               <span className="travelBrandMark">R</span>
               <div>
-                <div className="travelBrandName" aria-label="Master OTA">
-                  <strong>MASTER</strong>
-                  <span>OTA</span>
+                <div className="travelBrandName" aria-label="Rota Voy">
+                  <strong>ROTA</strong>
+                  <span>VOY</span>
                 </div>
                 <small>{t("travelPage.onlineTravelAgency")}</small>
               </div>
