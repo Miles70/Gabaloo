@@ -1,6 +1,6 @@
 const siteConfig = {
-  brandName: "Masterota",
-  shortName: "M",
+  brandName: "Rotavoy",
+  shortName: "R",
   description: "Shop, Travel, Discover.",
 };
 
