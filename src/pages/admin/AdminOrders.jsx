@@ -9,7 +9,16 @@ import {
   updateAdminOrder,
 } from "../../services/adminApi";
 
-const orderStatusOptions = ["pending", "processing", "shipped", "completed", "cancelled"];
+const orderStatusOptions = [
+  "awaiting_payment",
+  "pending",
+  "processing",
+  "shipped",
+  "delivered",
+  "completed",
+  "cancelled",
+  "expired",
+];
 const paymentStatusOptions = ["unpaid", "pending", "paid", "failed", "refunded"];
 
 function formatMoney(value, currency = "USD") {
@@ -36,7 +45,9 @@ function AdminOrders() {
   const [updatingOrder, setUpdatingOrder] = useState("");
   const [deletingOrder, setDeletingOrder] = useState("");
   const [isBulkDeleting, setIsBulkDeleting] = useState(false);
-  const [selectedOrderNumbers, setSelectedOrderNumbers] = useState(() => new Set());
+  const [selectedOrderNumbers, setSelectedOrderNumbers] = useState(
+    () => new Set(),
+  );
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [error, setError] = useState("");
 
@@ -52,18 +63,22 @@ function AdminOrders() {
       );
 
       setOrders(nextOrders);
-      setSelectedOrderNumbers((current) =>
-        new Set(
-          [...current].filter((orderNumber) =>
-            availableOrderNumbers.has(orderNumber),
+      setSelectedOrderNumbers(
+        (current) =>
+          new Set(
+            [...current].filter((orderNumber) =>
+              availableOrderNumbers.has(orderNumber),
+            ),
           ),
-        ),
       );
       setSelectedOrder((current) => {
         if (!current) return null;
-        return nextOrders.find(
-          (order) => order.orderNumber === current.orderNumber,
-        ) || null;
+
+        return (
+          nextOrders.find(
+            (order) => order.orderNumber === current.orderNumber,
+          ) || null
+        );
       });
     } catch (requestError) {
       setError(requestError.message);
@@ -88,7 +103,7 @@ function AdminOrders() {
         order.customer?.phone,
       ]
         .filter(Boolean)
-        .some((value) => String(value).toLowerCase().includes(term))
+        .some((value) => String(value).toLowerCase().includes(term)),
     );
   }, [orders, search]);
 
@@ -122,12 +137,17 @@ function AdminOrders() {
     setError("");
 
     try {
-      const data = await updateAdminOrder(token, orderNumber, { [field]: value });
+      const data = await updateAdminOrder(token, orderNumber, {
+        [field]: value,
+      });
+
       setOrders((current) =>
-        current.map((order) => (order.orderNumber === orderNumber ? data.order : order))
+        current.map((order) =>
+          order.orderNumber === orderNumber ? data.order : order,
+        ),
       );
       setSelectedOrder((current) =>
-        current?.orderNumber === orderNumber ? data.order : current
+        current?.orderNumber === orderNumber ? data.order : current,
       );
     } catch (requestError) {
       setError(requestError.message);
@@ -155,9 +175,13 @@ function AdminOrders() {
       const next = new Set(current);
 
       if (allVisibleSelected) {
-        visibleOrderNumbers.forEach((orderNumber) => next.delete(orderNumber));
+        visibleOrderNumbers.forEach((orderNumber) =>
+          next.delete(orderNumber),
+        );
       } else {
-        visibleOrderNumbers.forEach((orderNumber) => next.add(orderNumber));
+        visibleOrderNumbers.forEach((orderNumber) =>
+          next.add(orderNumber),
+        );
       }
 
       return next;
@@ -219,7 +243,9 @@ function AdminOrders() {
       );
       setSelectedOrderNumbers(new Set());
       setSelectedOrder((current) =>
-        current && deletedOrderNumbers.has(current.orderNumber) ? null : current,
+        current && deletedOrderNumbers.has(current.orderNumber)
+          ? null
+          : current,
       );
     } catch (requestError) {
       setError(requestError.message);
@@ -228,7 +254,9 @@ function AdminOrders() {
     }
   }
 
-  const isMutating = Boolean(updatingOrder || deletingOrder || isBulkDeleting);
+  const isMutating = Boolean(
+    updatingOrder || deletingOrder || isBulkDeleting,
+  );
 
   return (
     <div className="admin-page">
@@ -238,13 +266,18 @@ function AdminOrders() {
           <h1>Siparişler</h1>
           <p>Müşteriyi, ödemeyi ve teslimat akışını buradan yönet.</p>
         </div>
+
         <button
           className="admin-secondary-button"
           type="button"
           onClick={loadOrders}
           disabled={isLoading || isMutating}
         >
-          <RefreshCw size={18} className={isLoading ? "is-spinning" : ""} /> Yenile
+          <RefreshCw
+            size={18}
+            className={isLoading ? "is-spinning" : ""}
+          />
+          Yenile
         </button>
       </div>
 
@@ -257,15 +290,23 @@ function AdminOrders() {
             placeholder="Sipariş no, müşteri, e-posta ara..."
           />
         </label>
-        <select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)}>
+
+        <select
+          value={statusFilter}
+          onChange={(event) => setStatusFilter(event.target.value)}
+        >
           <option value="">Tüm siparişler</option>
           {orderStatusOptions.map((status) => (
-            <option key={status} value={status}>{status}</option>
+            <option key={status} value={status}>
+              {status}
+            </option>
           ))}
         </select>
       </section>
 
-      {error ? <div className="admin-alert admin-alert-error">{error}</div> : null}
+      {error ? (
+        <div className="admin-alert admin-alert-error">{error}</div>
+      ) : null}
 
       <section className="admin-panel">
         <div className="admin-panel-header">
@@ -278,11 +319,14 @@ function AdminOrders() {
             {selectedOrderNumbers.size > 0 ? (
               <span>{selectedOrderNumbers.size} seçili</span>
             ) : null}
+
             <button
               className="admin-bulk-delete-button"
               type="button"
               onClick={handleBulkDelete}
-              disabled={selectedOrderNumbers.size === 0 || isBulkDeleting}
+              disabled={
+                selectedOrderNumbers.size === 0 || isBulkDeleting
+              }
             >
               <Trash2 size={16} />
               {isBulkDeleting ? "Siliniyor..." : "Seçilenleri sil"}
@@ -301,7 +345,9 @@ function AdminOrders() {
                     type="checkbox"
                     checked={allVisibleSelected}
                     onChange={toggleVisibleOrders}
-                    disabled={visibleOrders.length === 0 || isMutating}
+                    disabled={
+                      visibleOrders.length === 0 || isMutating
+                    }
                     aria-label="Görünen siparişlerin tümünü seç"
                   />
                 </th>
@@ -315,11 +361,15 @@ function AdminOrders() {
                 <th></th>
               </tr>
             </thead>
+
             <tbody>
               {!isLoading && visibleOrders.length ? (
                 visibleOrders.map((order) => {
-                  const isSelected = selectedOrderNumbers.has(order.orderNumber);
-                  const isDeleting = deletingOrder === order.orderNumber;
+                  const isSelected = selectedOrderNumbers.has(
+                    order.orderNumber,
+                  );
+                  const isDeleting =
+                    deletingOrder === order.orderNumber;
 
                   return (
                     <tr
@@ -331,12 +381,20 @@ function AdminOrders() {
                           className="admin-order-checkbox"
                           type="checkbox"
                           checked={isSelected}
-                          onChange={() => toggleOrderSelection(order.orderNumber)}
-                          disabled={isDeleting || isBulkDeleting}
+                          onChange={() =>
+                            toggleOrderSelection(order.orderNumber)
+                          }
+                          disabled={
+                            isDeleting || isBulkDeleting
+                          }
                           aria-label={`#${order.orderNumber} siparişini seç`}
                         />
                       </td>
-                      <td><strong>#{order.orderNumber}</strong></td>
+
+                      <td>
+                        <strong>#{order.orderNumber}</strong>
+                      </td>
+
                       <td>
                         <div className="admin-customer-cell">
                           <strong>{order.customer?.fullName}</strong>
@@ -344,49 +402,98 @@ function AdminOrders() {
                           <span>{order.customer?.phone}</span>
                         </div>
                       </td>
-                      <td>{order.items?.reduce((total, item) => total + item.quantity, 0) || 0} adet</td>
-                      <td><strong>{formatMoney(order.total, order.currency)}</strong></td>
+
+                      <td>
+                        {order.items?.reduce(
+                          (total, item) => total + item.quantity,
+                          0,
+                        ) || 0}{" "}
+                        adet
+                      </td>
+
+                      <td>
+                        <strong>
+                          {formatMoney(
+                            order.total,
+                            order.currency,
+                          )}
+                        </strong>
+                      </td>
+
                       <td>
                         <select
                           className={`admin-inline-select admin-status-select-${order.status}`}
                           value={order.status}
-                          disabled={updatingOrder === order.orderNumber || isDeleting || isBulkDeleting}
-                          onChange={(event) => handleUpdate(order.orderNumber, "status", event.target.value)}
+                          disabled={
+                            updatingOrder === order.orderNumber ||
+                            isDeleting ||
+                            isBulkDeleting
+                          }
+                          onChange={(event) =>
+                            handleUpdate(
+                              order.orderNumber,
+                              "status",
+                              event.target.value,
+                            )
+                          }
                         >
                           {orderStatusOptions.map((status) => (
-                            <option key={status} value={status}>{status}</option>
+                            <option key={status} value={status}>
+                              {status}
+                            </option>
                           ))}
                         </select>
                       </td>
+
                       <td>
                         <select
                           className={`admin-inline-select admin-payment-select-${order.paymentStatus}`}
                           value={order.paymentStatus}
-                          disabled={updatingOrder === order.orderNumber || isDeleting || isBulkDeleting}
-                          onChange={(event) => handleUpdate(order.orderNumber, "paymentStatus", event.target.value)}
+                          disabled={
+                            updatingOrder === order.orderNumber ||
+                            isDeleting ||
+                            isBulkDeleting
+                          }
+                          onChange={(event) =>
+                            handleUpdate(
+                              order.orderNumber,
+                              "paymentStatus",
+                              event.target.value,
+                            )
+                          }
                         >
                           {paymentStatusOptions.map((status) => (
-                            <option key={status} value={status}>{status}</option>
+                            <option key={status} value={status}>
+                              {status}
+                            </option>
                           ))}
                         </select>
                       </td>
+
                       <td>{formatDate(order.createdAt)}</td>
+
                       <td>
                         <div className="admin-order-actions">
                           <button
                             className="admin-detail-button"
                             type="button"
                             onClick={() => setSelectedOrder(order)}
-                            disabled={isDeleting || isBulkDeleting}
+                            disabled={
+                              isDeleting || isBulkDeleting
+                            }
                             aria-label={`#${order.orderNumber} siparişini aç`}
                           >
-                            <Eye size={16} /> Detay
+                            <Eye size={16} />
+                            Detay
                           </button>
+
                           <button
                             className="admin-delete-button"
                             type="button"
                             onClick={() => handleDeleteOrder(order)}
-                            disabled={isDeleting || isBulkDeleting}
+                            disabled={
+                              isDeleting || isBulkDeleting
+                            }
                             aria-label={`#${order.orderNumber} siparişini sil`}
                           >
                             <Trash2 size={16} />
@@ -402,7 +509,9 @@ function AdminOrders() {
                   <td colSpan="9">
                     <div className="admin-empty-state">
                       <ShoppingCart size={24} />
-                      {isLoading ? "Siparişler yükleniyor..." : "Bu filtrede sipariş bulunamadı."}
+                      {isLoading
+                        ? "Siparişler yükleniyor..."
+                        : "Bu filtrede sipariş bulunamadı."}
                     </div>
                   </td>
                 </tr>
@@ -413,7 +522,10 @@ function AdminOrders() {
       </section>
 
       {selectedOrder ? (
-        <OrderDetailsModal order={selectedOrder} onClose={() => setSelectedOrder(null)} />
+        <OrderDetailsModal
+          order={selectedOrder}
+          onClose={() => setSelectedOrder(null)}
+        />
       ) : null}
     </div>
   );
