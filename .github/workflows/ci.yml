@@ -35,7 +35,7 @@ jobs:
         run: npm run build
 
       - name: Install backend dependencies
-        run: npm ci --prefix server
+        run: npm install --prefix server --ignore-scripts --no-audit --no-fund
 
       - name: Check backend syntax
         shell: bash
