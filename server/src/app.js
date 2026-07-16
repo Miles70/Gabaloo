@@ -10,6 +10,8 @@ import {
 } from "./routes/homeCampaign.js";
 import { adminProductCreateRouter } from "./routes/adminProductCreate.js";
 import { adminProductListRouter } from "./routes/adminProductList.js";
+import { customerAccountRouter } from "./routes/customerAccount.js";
+import { customerAuthRouter } from "./routes/customerAuth.js";
 import { ordersRouter } from "./routes/orders.js";
 import { productListRouter } from "./routes/productList.js";
 import { productsRouter } from "./routes/products.js";
@@ -40,7 +42,7 @@ export function createApp() {
         callback(new Error("Origin is not allowed by CORS."));
       },
       credentials: false,
-    })
+    }),
   );
   app.use(express.json({ limit: "100kb" }));
 
@@ -51,7 +53,7 @@ export function createApp() {
       limit: 300,
       standardHeaders: "draft-8",
       legacyHeaders: false,
-    })
+    }),
   );
 
   app.get("/api/health", (request, response) => {
@@ -62,6 +64,8 @@ export function createApp() {
     });
   });
 
+  app.use("/api/customer-auth", customerAuthRouter);
+  app.use("/api/customer", customerAccountRouter);
   app.use("/api/admin/analytics", adminAnalyticsRouter);
   app.use("/api/admin/campaign", adminHomeCampaignRouter);
   app.use("/api/admin/products", adminProductListRouter);
