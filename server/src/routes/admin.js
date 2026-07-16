@@ -3,6 +3,7 @@ import rateLimit from "express-rate-limit";
 import { requireAdmin } from "../middleware/requireAdmin.js";
 import { Order } from "../models/Order.js";
 import { Product } from "../models/Product.js";
+import { releaseOrderStock } from "../services/stockReservation.js";
 import {
   createAdminToken,
   verifyAdminCredentials,
@@ -10,7 +11,16 @@ import {
 
 export const adminRouter = Router();
 
-const orderStatuses = ["pending", "processing", "shipped", "completed", "cancelled"];
+const orderStatuses = [
+  "awaiting_payment",
+  "pending",
+  "processing",
+  "shipped",
+  "delivered",
+  "completed",
+  "cancelled",
+  "expired",
+];
 const paymentStatuses = ["unpaid", "pending", "paid", "failed", "refunded"];
 const paymentMethods = ["not_selected", "card", "crypto"];
 const productBadges = ["sale", "new", "stock", null];
@@ -36,6 +46,21 @@ function escapeRegex(value) {
 
 function normalizeOrderNumber(value) {
   return String(value || "").trim().toUpperCase();
+}
+
+async function releaseReservedOrdersBeforeDelete(orderNumbers) {
+  const orders = await Order.find({
+    orderNumber: { $in: orderNumbers },
+    stockReserved: true,
+    paymentStatus: { $in: ["unpaid", "pending"] },
+  });
+
+  for (const order of orders) {
+    await releaseOrderStock(order, {
+      status: "cancelled",
+      paymentStatus: "failed",
+    });
+  }
 }
 
 adminRouter.post("/login", loginLimiter, (request, response, next) => {
@@ -82,7 +107,9 @@ adminRouter.get("/dashboard", async (request, response, next) => {
       Product.countDocuments({ isActive: true }),
       Product.countDocuments({ isActive: true, stock: { $lte: lowStockThreshold } }),
       Order.countDocuments(),
-      Order.countDocuments({ status: { $in: ["pending", "processing"] } }),
+      Order.countDocuments({
+        status: { $in: ["awaiting_payment", "pending", "processing"] },
+      }),
       Order.aggregate([
         { $match: { paymentStatus: "paid" } },
         {
@@ -167,6 +194,8 @@ adminRouter.delete("/orders", async (request, response, next) => {
       );
     }
 
+    await releaseReservedOrdersBeforeDelete(orderNumbers);
+
     const result = await Order.deleteMany({
       orderNumber: { $in: orderNumbers },
     });
@@ -188,15 +217,27 @@ adminRouter.delete("/orders/:orderNumber", async (request, response, next) => {
       throw createHttpError("Order number is required.", 400);
     }
 
-    const order = await Order.findOneAndDelete({ orderNumber }).lean();
+    const existingOrder = await Order.findOne({ orderNumber });
 
-    if (!order) {
+    if (!existingOrder) {
       return response.status(404).json({ message: "Order not found." });
     }
 
+    if (
+      existingOrder.stockReserved &&
+      ["unpaid", "pending"].includes(existingOrder.paymentStatus)
+    ) {
+      await releaseOrderStock(existingOrder, {
+        status: "cancelled",
+        paymentStatus: "failed",
+      });
+    }
+
+    await Order.deleteOne({ _id: existingOrder._id });
+
     return response.json({
       deleted: true,
-      orderNumber: order.orderNumber,
+      orderNumber: existingOrder.orderNumber,
     });
   } catch (error) {
     return next(error);
@@ -205,6 +246,7 @@ adminRouter.delete("/orders/:orderNumber", async (request, response, next) => {
 
 adminRouter.patch("/orders/:orderNumber", async (request, response, next) => {
   try {
+    const orderNumber = normalizeOrderNumber(request.params.orderNumber);
     const updates = {};
 
     if (request.body?.status !== undefined) {
@@ -232,8 +274,30 @@ adminRouter.patch("/orders/:orderNumber", async (request, response, next) => {
       throw createHttpError("No valid order fields were provided.", 400);
     }
 
+    if (updates.status === "cancelled") {
+      const existingOrder = await Order.findOne({ orderNumber });
+
+      if (!existingOrder) {
+        return response.status(404).json({ message: "Order not found." });
+      }
+
+      if (
+        existingOrder.stockReserved &&
+        ["unpaid", "pending"].includes(existingOrder.paymentStatus)
+      ) {
+        const releasedOrder = await releaseOrderStock(existingOrder, {
+          status: "cancelled",
+          paymentStatus: "failed",
+        });
+
+        if (releasedOrder) {
+          return response.json({ order: releasedOrder });
+        }
+      }
+    }
+
     const order = await Order.findOneAndUpdate(
-      { orderNumber: request.params.orderNumber },
+      { orderNumber },
       { $set: updates },
       { new: true, runValidators: true }
     ).lean();
