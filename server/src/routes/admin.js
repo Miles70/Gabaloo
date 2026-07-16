@@ -24,6 +24,14 @@ const orderStatuses = [
 const paymentStatuses = ["unpaid", "pending", "paid", "failed", "refunded"];
 const paymentMethods = ["not_selected", "card", "crypto"];
 const productBadges = ["sale", "new", "stock", null];
+const releaseOrderStatuses = new Set(["cancelled", "expired"]);
+const commitOrderStatuses = new Set([
+  "processing",
+  "shipped",
+  "delivered",
+  "completed",
+]);
+const releasePaymentStatuses = new Set(["failed", "refunded"]);
 const MAX_BULK_ORDER_DELETE = 200;
 
 const loginLimiter = rateLimit({
@@ -48,11 +56,26 @@ function normalizeOrderNumber(value) {
   return String(value || "").trim().toUpperCase();
 }
 
+function shouldReleaseReservation(updates) {
+  return (
+    releaseOrderStatuses.has(updates.status) ||
+    releasePaymentStatuses.has(updates.paymentStatus)
+  );
+}
+
+function shouldCommitReservation(updates) {
+  return (
+    updates.paymentStatus === "paid" ||
+    commitOrderStatuses.has(updates.status)
+  );
+}
+
 async function releaseReservedOrdersBeforeDelete(orderNumbers) {
   const orders = await Order.find({
     orderNumber: { $in: orderNumbers },
     stockReserved: true,
-    paymentStatus: { $in: ["unpaid", "pending"] },
+    stockCommittedAt: null,
+    paymentStatus: { $ne: "paid" },
   });
 
   for (const order of orders) {
@@ -225,7 +248,8 @@ adminRouter.delete("/orders/:orderNumber", async (request, response, next) => {
 
     if (
       existingOrder.stockReserved &&
-      ["unpaid", "pending"].includes(existingOrder.paymentStatus)
+      !existingOrder.stockCommittedAt &&
+      existingOrder.paymentStatus !== "paid"
     ) {
       await releaseOrderStock(existingOrder, {
         status: "cancelled",
@@ -274,32 +298,79 @@ adminRouter.patch("/orders/:orderNumber", async (request, response, next) => {
       throw createHttpError("No valid order fields were provided.", 400);
     }
 
-    if (updates.status === "cancelled") {
-      const existingOrder = await Order.findOne({ orderNumber });
+    const existingOrder = await Order.findOne({ orderNumber });
 
-      if (!existingOrder) {
-        return response.status(404).json({ message: "Order not found." });
+    if (!existingOrder) {
+      return response.status(404).json({ message: "Order not found." });
+    }
+
+    if (existingOrder.stockReserved && shouldReleaseReservation(updates)) {
+      const releasedOrder = await releaseOrderStock(existingOrder, {
+        status: releaseOrderStatuses.has(updates.status)
+          ? updates.status
+          : "cancelled",
+        paymentStatus: releasePaymentStatuses.has(updates.paymentStatus)
+          ? updates.paymentStatus
+          : "failed",
+      });
+
+      if (releasedOrder) {
+        const order = await Order.findOneAndUpdate(
+          { _id: releasedOrder._id },
+          { $set: updates },
+          { new: true, runValidators: true },
+        ).lean();
+
+        return response.json({ order });
       }
+    }
+
+    if (existingOrder.stockReserved && shouldCommitReservation(updates)) {
+      const committedAt = new Date();
+      const commitUpdates = {
+        ...updates,
+        stockReserved: false,
+        stockCommittedAt: committedAt,
+        reservationExpiresAt: null,
+      };
 
       if (
-        existingOrder.stockReserved &&
-        ["unpaid", "pending"].includes(existingOrder.paymentStatus)
+        updates.paymentStatus === "paid" &&
+        updates.status === undefined &&
+        ["awaiting_payment", "pending"].includes(existingOrder.status)
       ) {
-        const releasedOrder = await releaseOrderStock(existingOrder, {
-          status: "cancelled",
-          paymentStatus: "failed",
-        });
+        commitUpdates.status = "processing";
+      }
 
-        if (releasedOrder) {
-          return response.json({ order: releasedOrder });
-        }
+      const committedOrder = await Order.findOneAndUpdate(
+        {
+          _id: existingOrder._id,
+          stockReserved: true,
+          stockReleasedAt: null,
+          stockCommittedAt: null,
+        },
+        { $set: commitUpdates },
+        { new: true, runValidators: true },
+      ).lean();
+
+      if (committedOrder) {
+        return response.json({ order: committedOrder });
+      }
+
+      const currentOrder = await Order.findById(existingOrder._id).lean();
+
+      if (currentOrder?.stockReleasedAt && !currentOrder.stockCommittedAt) {
+        throw createHttpError(
+          "The stock reservation was already released. Create a new order before marking it paid.",
+          409,
+        );
       }
     }
 
     const order = await Order.findOneAndUpdate(
       { orderNumber },
       { $set: updates },
-      { new: true, runValidators: true }
+      { new: true, runValidators: true },
     ).lean();
 
     if (!order) {
@@ -380,7 +451,7 @@ adminRouter.patch("/products/:productKey", async (request, response, next) => {
     const product = await Product.findOneAndUpdate(
       { key: request.params.productKey },
       { $set: updates },
-      { new: true, runValidators: true }
+      { new: true, runValidators: true },
     ).lean();
 
     if (!product) {
