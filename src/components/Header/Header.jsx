@@ -179,13 +179,6 @@ function Header() {
             >
               {t("nav.travel")}
             </NavLink>
-
-            <NavLink
-              to="/cart"
-              className={({ isActive }) => (isActive ? "active" : "")}
-            >
-              {t("nav.cart")}
-            </NavLink>
           </nav>
 
           <div className="headerActions">
