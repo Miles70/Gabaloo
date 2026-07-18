@@ -12,10 +12,23 @@ import {
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import categories from "../../data/categories";
-import { getCategoryGroupText } from "../../i18n/categoryGroups";
+import { getCategoryGroupText } from "../../i18n/categoryGroupText";
 import { useLanguage } from "../../i18n/LanguageContext";
 import { getStoreProducts } from "../../services/productsApi";
 import "./FeaturedCategories.css";
+
+const numberLocales = {
+  en: "en-US",
+  tr: "tr-TR",
+  ru: "ru-RU",
+  ar: "ar-SA",
+  zh: "zh-CN",
+  es: "es-ES",
+  pt: "pt-BR",
+  fr: "fr-FR",
+  de: "de-DE",
+  it: "it-IT",
+};
 
 const categoryIcons = {
   electronics: Cpu,
@@ -32,6 +45,7 @@ const categoryIcons = {
 function FeaturedCategories() {
   const { t, language } = useLanguage();
   const [categoryData, setCategoryData] = useState({});
+  const numberLocale = numberLocales[language] || numberLocales.en;
 
   useEffect(() => {
     let isCancelled = false;
@@ -99,7 +113,9 @@ function FeaturedCategories() {
                     </div>
 
                     <span className="featuredCategoryCount">
-                      {groupData.total > 0 ? `${groupData.total.toLocaleString("tr-TR")} ürün` : "—"}
+                      {groupData.total > 0
+                        ? `${groupData.total.toLocaleString(numberLocale)} ${t("categoriesPage.items")}`
+                        : "—"}
                     </span>
                   </div>
 
