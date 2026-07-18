@@ -15,7 +15,7 @@ import {
 import { Link } from "react-router-dom";
 import ProductCard from "../components/ProductCard/ProductCard";
 import categories from "../data/categories";
-import { getCategoryGroupText } from "../i18n/categoryGroups";
+import { getCategoryGroupText } from "../i18n/categoryGroupText";
 import { useLanguage } from "../i18n/LanguageContext";
 import { getStoreProducts } from "../services/productsApi";
 import "./Categories.css";
@@ -138,6 +138,19 @@ const pageTranslations = {
     ready: "Bereit zum Entdecken",
     loading: "Kategorien werden geladen...",
   },
+  it: {
+    tag: "Categorie",
+    title: "Acquista per categoria.",
+    text: "Esplora il marketplace attraverso nove collezioni ben definite e trova più rapidamente i prodotti giusti.",
+    collections: "Collezioni",
+    products: "Prodotti",
+    globalStore: "Negozio globale",
+    quickBrowse: "Esplorazione rapida",
+    featured: "Prodotti in evidenza",
+    viewAll: "Vedi tutto",
+    ready: "Pronto da esplorare",
+    loading: "Caricamento categorie...",
+  },
 };
 
 const numberLocales = {
@@ -150,6 +163,7 @@ const numberLocales = {
   pt: "pt-BR",
   fr: "fr-FR",
   de: "de-DE",
+  it: "it-IT",
 };
 
 const categoryIcons = {
