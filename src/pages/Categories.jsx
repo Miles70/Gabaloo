@@ -86,6 +86,70 @@ const pageTranslations = {
     ready: "随时探索",
     loading: "正在加载分类...",
   },
+  es: {
+    tag: "Categorías",
+    title: "Compra por categoría.",
+    text: "Explora el marketplace a través de nueve colecciones claras y encuentra más rápido los productos adecuados.",
+    collections: "Colecciones",
+    products: "Productos",
+    globalStore: "Tienda global",
+    quickBrowse: "Exploración rápida",
+    featured: "Selección destacada",
+    viewAll: "Ver todo",
+    ready: "Listo para explorar",
+    loading: "Cargando categorías...",
+  },
+  pt: {
+    tag: "Categorias",
+    title: "Compre por categoria.",
+    text: "Explore o marketplace por nove coleções bem definidas e encontre os produtos certos com mais rapidez.",
+    collections: "Coleções",
+    products: "Produtos",
+    globalStore: "Loja global",
+    quickBrowse: "Navegação rápida",
+    featured: "Destaques",
+    viewAll: "Ver tudo",
+    ready: "Pronto para explorar",
+    loading: "Carregando categorias...",
+  },
+  fr: {
+    tag: "Catégories",
+    title: "Achetez par catégorie.",
+    text: "Parcourez la marketplace à travers neuf collections claires et trouvez plus rapidement les bons produits.",
+    collections: "Collections",
+    products: "Produits",
+    globalStore: "Boutique mondiale",
+    quickBrowse: "Navigation rapide",
+    featured: "Sélection du moment",
+    viewAll: "Tout voir",
+    ready: "Prêt à explorer",
+    loading: "Chargement des catégories...",
+  },
+  de: {
+    tag: "Kategorien",
+    title: "Nach Kategorie einkaufen.",
+    text: "Durchsuche den Marktplatz in neun übersichtlichen Kollektionen und finde schneller die passenden Produkte.",
+    collections: "Kollektionen",
+    products: "Produkte",
+    globalStore: "Globaler Shop",
+    quickBrowse: "Schnellnavigation",
+    featured: "Empfehlungen",
+    viewAll: "Alle ansehen",
+    ready: "Bereit zum Entdecken",
+    loading: "Kategorien werden geladen...",
+  },
+};
+
+const numberLocales = {
+  en: "en-US",
+  tr: "tr-TR",
+  ru: "ru-RU",
+  ar: "ar-SA",
+  zh: "zh-CN",
+  es: "es-ES",
+  pt: "pt-BR",
+  fr: "fr-FR",
+  de: "de-DE",
 };
 
 const categoryIcons = {
@@ -103,6 +167,7 @@ const categoryIcons = {
 function Categories() {
   const { t, language } = useLanguage();
   const copy = pageTranslations[language] || pageTranslations.en;
+  const numberLocale = numberLocales[language] || numberLocales.en;
   const [categoryData, setCategoryData] = useState({});
   const [isLoading, setIsLoading] = useState(true);
 
@@ -165,7 +230,7 @@ function Categories() {
         </div>
 
         <div className="categoryStat">
-          <strong>{isLoading ? "—" : totalProducts.toLocaleString("en-US")}</strong>
+          <strong>{isLoading ? "—" : totalProducts.toLocaleString(numberLocale)}</strong>
           <span>{copy.products}</span>
         </div>
 
@@ -234,7 +299,7 @@ function Categories() {
 
                 <div className="categoryGroupActions">
                   <p>
-                    {isLoading ? "—" : groupData.total.toLocaleString("en-US")} {t("categoriesPage.items")}
+                    {isLoading ? "—" : groupData.total.toLocaleString(numberLocale)} {t("categoriesPage.items")}
                   </p>
                   <Link to={productsPath}>
                     {copy.viewAll}
