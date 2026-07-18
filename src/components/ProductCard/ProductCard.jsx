@@ -39,6 +39,49 @@ const badgeTranslations = {
     add: "加入购物车",
     added: "已加入购物车",
   },
+  es: {
+    new: "Nuevo",
+    stock: "En stock",
+    add: "Añadir al carrito",
+    added: "Añadido al carrito",
+  },
+  pt: {
+    new: "Novo",
+    stock: "Em estoque",
+    add: "Adicionar ao carrinho",
+    added: "Adicionado ao carrinho",
+  },
+  fr: {
+    new: "Nouveau",
+    stock: "En stock",
+    add: "Ajouter au panier",
+    added: "Ajouté au panier",
+  },
+  de: {
+    new: "Neu",
+    stock: "Auf Lager",
+    add: "In den Warenkorb",
+    added: "Zum Warenkorb hinzugefügt",
+  },
+  it: {
+    new: "Nuovo",
+    stock: "Disponibile",
+    add: "Aggiungi al carrello",
+    added: "Aggiunto al carrello",
+  },
+};
+
+const numberLocales = {
+  en: "en-US",
+  tr: "tr-TR",
+  ru: "ru-RU",
+  ar: "ar-SA",
+  zh: "zh-CN",
+  es: "es-ES",
+  pt: "pt-BR",
+  fr: "fr-FR",
+  de: "de-DE",
+  it: "it-IT",
 };
 
 function getCategoryLabel(categoryKey, t) {
@@ -62,6 +105,7 @@ function ProductCard({ product }) {
   const [isAdded, setIsAdded] = useState(false);
 
   const labels = badgeTranslations[language] || badgeTranslations.en;
+  const numberLocale = numberLocales[language] || numberLocales.en;
   const productPath = `/products/${product.key}`;
   const favorite = isFavorite(product.key);
 
@@ -93,7 +137,7 @@ function ProductCard({ product }) {
   }
 
   function formatPrice(price) {
-    return `$${Number(price || 0).toLocaleString("en-US", {
+    return `$${Number(price || 0).toLocaleString(numberLocale, {
       minimumFractionDigits: 0,
       maximumFractionDigits: 2,
     })}`;
